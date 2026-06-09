@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls .env*)",
+      "Bash(npx dotenv:*)",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}

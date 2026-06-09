@@ -1,0 +1,4260 @@
+openapi: 3.0.3
+info:
+  title: Car Service Admin API
+  version: 2.0.0
+  description: |
+    Backend contract for the Car Service Admin dashboard.
+
+    The frontend currently covers authentication, onboarding, dashboard widgets,
+    bookings, payments, payment exports, reports, storage inventory, business
+    settings, billing account verification, notification preferences, inbox,
+    feedback, help center content, and location search.
+
+    API JSON uses camelCase. The recommended database schema uses snake_case.
+    Dates should be stored and exchanged as ISO-8601 strings. The frontend can
+    format those dates for display.
+  contact:
+    name: Car Service Admin
+
+servers:
+  - url: http://localhost:3333
+    description: Local backend development
+  - url: https://api.car-service-admin.example.com
+    description: Production
+
+tags:
+  - name: System
+  - name: Auth
+  - name: Account
+  - name: Onboarding
+  - name: Business
+  - name: Dashboard
+  - name: Bookings
+  - name: Customers
+  - name: Vehicles
+  - name: Services
+  - name: Inventory
+  - name: Payments
+  - name: Reports
+  - name: Billing
+  - name: Notifications
+  - name: Inbox
+  - name: Support
+  - name: Locations
+
+security:
+  - bearerAuth: []
+
+paths:
+  /system/health:
+    get:
+      tags: [System]
+      operationId: getHealth
+      summary: Health check for load balancers and uptime checks
+      security: []
+      responses:
+        "200":
+          description: Service health
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /auth/sign-in:
+    post:
+      tags: [Auth]
+      operationId: signIn
+      summary: Sign in as a client, business user, or admin
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignInDto"
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/sign-up:
+    post:
+      tags: [Auth]
+      operationId: signUpBusiness
+      summary: Register a new business workspace and owner account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessSignUpDto"
+      responses:
+        "201":
+          description: Business account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refreshToken
+      summary: Rotate a refresh token and return a new access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenDto"
+      responses:
+        "200":
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      operationId: getCurrentUser
+      summary: Get the current authenticated user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/sign-out:
+    post:
+      tags: [Auth]
+      operationId: signOut
+      summary: Revoke the current refresh token/session
+      responses:
+        "204":
+          description: Signed out
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /account/profile:
+    get:
+      tags: [Account]
+      operationId: getAccountProfile
+      summary: Get personal profile and address settings
+      responses:
+        "200":
+          description: Account profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountProfile"
+    patch:
+      tags: [Account]
+      operationId: updateAccountProfile
+      summary: Update personal profile and address settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountProfileUpdateDto"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountProfile"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /account/security:
+    get:
+      tags: [Account]
+      operationId: getSecuritySettings
+      summary: Get security preferences and MFA state
+      responses:
+        "200":
+          description: Security settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecuritySettings"
+    patch:
+      tags: [Account]
+      operationId: updateSecuritySettings
+      summary: Update security preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SecuritySettingsUpdateDto"
+      responses:
+        "200":
+          description: Updated security settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecuritySettings"
+
+  /account/mfa:
+    put:
+      tags: [Account]
+      operationId: configureMfa
+      summary: Enable, update, or disable multi-factor authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MfaUpdateDto"
+      responses:
+        "200":
+          description: Updated MFA settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaSettings"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /account/notification-preferences:
+    get:
+      tags: [Notifications]
+      operationId: getNotificationPreferences
+      summary: Get account toast/action notification preferences
+      responses:
+        "200":
+          description: Notification preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPreferences"
+    put:
+      tags: [Notifications]
+      operationId: updateNotificationPreferences
+      summary: Replace account notification preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationPreferencesUpdateDto"
+      responses:
+        "200":
+          description: Updated preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPreferences"
+
+  /onboarding/progress:
+    get:
+      tags: [Onboarding]
+      operationId: getOnboardingProgress
+      summary: Get current onboarding progress for the business workspace
+      responses:
+        "200":
+          description: Onboarding progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingProgress"
+
+  /onboarding/owner-information:
+    put:
+      tags: [Onboarding]
+      operationId: saveOwnerInformation
+      summary: Save owner information onboarding step
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OwnerInformationDto"
+      responses:
+        "200":
+          description: Step saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingStepResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /onboarding/business-information:
+    put:
+      tags: [Onboarding]
+      operationId: saveBusinessInformation
+      summary: Save business information onboarding step
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessInformationDto"
+      responses:
+        "200":
+          description: Step saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingStepResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /onboarding/bank-details:
+    put:
+      tags: [Onboarding]
+      operationId: saveOnboardingBankDetails
+      summary: Save bank details collected during onboarding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BankAccountCreateDto"
+      responses:
+        "200":
+          description: Step saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingStepResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /onboarding/two-factor-auth:
+    put:
+      tags: [Onboarding]
+      operationId: saveOnboardingMfa
+      summary: Save MFA settings collected during onboarding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MfaUpdateDto"
+      responses:
+        "200":
+          description: Step saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingStepResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /onboarding/submit:
+    post:
+      tags: [Onboarding]
+      operationId: submitOnboarding
+      summary: Mark onboarding ready for review or activation
+      responses:
+        "200":
+          description: Onboarding submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingProgress"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /business/profile:
+    get:
+      tags: [Business]
+      operationId: getBusinessProfile
+      summary: Get current business details and shop location
+      responses:
+        "200":
+          description: Business profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Business"
+    patch:
+      tags: [Business]
+      operationId: updateBusinessProfile
+      summary: Update business details or shop location
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessUpdateDto"
+      responses:
+        "200":
+          description: Updated business profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Business"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /business/setup-warnings:
+    get:
+      tags: [Business]
+      operationId: getSetupWarnings
+      summary: Get account/business setup warnings for dashboard and settings
+      x-cache:
+        store: redis
+        ttlSeconds: 60
+        key: "business:{businessId}:setup-warnings"
+      responses:
+        "200":
+          description: Setup warnings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SetupWarning"
+
+  /dashboard/summary:
+    get:
+      tags: [Dashboard]
+      operationId: getDashboardSummary
+      summary: Get dashboard status counts and headline metrics
+      x-cache:
+        store: redis
+        ttlSeconds: 120
+        key: "business:{businessId}:dashboard:summary"
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/bookings/month:
+    get:
+      tags: [Dashboard]
+      operationId: getDashboardMonthBookings
+      summary: Get bookings that overlap a calendar month
+      parameters:
+        - in: query
+          name: year
+          required: true
+          schema:
+            type: integer
+            minimum: 2000
+            example: 2026
+        - in: query
+          name: month
+          required: true
+          description: Zero-based month number. 0 is January.
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 11
+            example: 3
+      responses:
+        "200":
+          description: Calendar month bookings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalendarBookings"
+
+  /dashboard/widgets:
+    get:
+      tags: [Dashboard]
+      operationId: getDashboardWidgets
+      summary: Get active and available dashboard widgets
+      responses:
+        "200":
+          description: Dashboard widget preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardWidgetPreferences"
+    put:
+      tags: [Dashboard]
+      operationId: updateDashboardWidgets
+      summary: Replace active dashboard widget order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DashboardWidgetPreferencesUpdateDto"
+      responses:
+        "200":
+          description: Updated dashboard widget preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardWidgetPreferences"
+
+  /bookings:
+    get:
+      tags: [Bookings]
+      operationId: listBookings
+      summary: List bookings with filters, search, sort, and pagination
+      parameters:
+        - in: query
+          name: status
+          schema:
+            $ref: "#/components/schemas/BookingStatus"
+        - in: query
+          name: startDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: endDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: search
+          description: Matches booking id, service name, customer name, car make, or payment id.
+          schema:
+            type: string
+        - in: query
+          name: sortBy
+          schema:
+            type: string
+            enum: [serviceName, name, carMake, startDate, endDate, status, price]
+        - $ref: "#/components/parameters/SortOrderQuery"
+        - $ref: "#/components/parameters/PageQuery"
+        - $ref: "#/components/parameters/LimitQuery"
+      responses:
+        "200":
+          description: Paginated bookings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedBookings"
+    post:
+      tags: [Bookings]
+      operationId: createBooking
+      summary: Create a booking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookingCreateDto"
+      responses:
+        "201":
+          description: Created booking
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /bookings/{bookingId}:
+    get:
+      tags: [Bookings]
+      operationId: getBooking
+      summary: Get booking details
+      parameters:
+        - $ref: "#/components/parameters/BookingIdPath"
+      responses:
+        "200":
+          description: Booking details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Bookings]
+      operationId: updateBooking
+      summary: Update booking fields
+      parameters:
+        - $ref: "#/components/parameters/BookingIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookingUpdateDto"
+      responses:
+        "200":
+          description: Updated booking
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Bookings]
+      operationId: deleteBooking
+      summary: Delete a booking
+      parameters:
+        - $ref: "#/components/parameters/BookingIdPath"
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /bookings/{bookingId}/status:
+    patch:
+      tags: [Bookings]
+      operationId: updateBookingStatus
+      summary: Accept, decline, complete, or move one booking
+      parameters:
+        - $ref: "#/components/parameters/BookingIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookingStatusUpdateDto"
+      responses:
+        "200":
+          description: Updated booking
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /bookings/batch/status:
+    patch:
+      tags: [Bookings]
+      operationId: updateBookingStatuses
+      summary: Bulk update booking statuses for selected rows
+      x-queue:
+        name: notification-dispatch
+        reason: Send accepted/declined notifications without blocking the booking update.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookingBatchStatusUpdateDto"
+      responses:
+        "200":
+          description: Batch status update result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchMutationResult"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /customers:
+    get:
+      tags: [Customers]
+      operationId: listCustomers
+      summary: List customers for the current business
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+        - $ref: "#/components/parameters/PageQuery"
+        - $ref: "#/components/parameters/LimitQuery"
+      responses:
+        "200":
+          description: Paginated customers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedCustomers"
+    post:
+      tags: [Customers]
+      operationId: createCustomer
+      summary: Create a customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerCreateDto"
+      responses:
+        "201":
+          description: Created customer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /customers/{customerId}:
+    get:
+      tags: [Customers]
+      operationId: getCustomer
+      summary: Get customer details
+      parameters:
+        - $ref: "#/components/parameters/CustomerIdPath"
+      responses:
+        "200":
+          description: Customer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Customers]
+      operationId: updateCustomer
+      summary: Update customer details
+      parameters:
+        - $ref: "#/components/parameters/CustomerIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerUpdateDto"
+      responses:
+        "200":
+          description: Updated customer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /vehicles:
+    get:
+      tags: [Vehicles]
+      operationId: listVehicles
+      summary: List vehicles for customers in the current business
+      parameters:
+        - in: query
+          name: customerId
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: search
+          schema:
+            type: string
+        - $ref: "#/components/parameters/PageQuery"
+        - $ref: "#/components/parameters/LimitQuery"
+      responses:
+        "200":
+          description: Paginated vehicles
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedVehicles"
+    post:
+      tags: [Vehicles]
+      operationId: createVehicle
+      summary: Create a vehicle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VehicleCreateDto"
+      responses:
+        "201":
+          description: Created vehicle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vehicle"
+
+  /vehicles/{vehicleId}:
+    get:
+      tags: [Vehicles]
+      operationId: getVehicle
+      summary: Get vehicle details
+      parameters:
+        - $ref: "#/components/parameters/VehicleIdPath"
+      responses:
+        "200":
+          description: Vehicle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vehicle"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Vehicles]
+      operationId: updateVehicle
+      summary: Update vehicle details
+      parameters:
+        - $ref: "#/components/parameters/VehicleIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VehicleUpdateDto"
+      responses:
+        "200":
+          description: Updated vehicle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vehicle"
+
+  /services/catalog:
+    get:
+      tags: [Services]
+      operationId: getServiceCatalog
+      summary: Get seeded service categories, services, icons, and config options
+      security: []
+      x-cache:
+        store: redis
+        ttlSeconds: 86400
+        key: "catalog:services:v1"
+      responses:
+        "200":
+          description: Service catalog
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ServiceCategory"
+
+  /business/services:
+    get:
+      tags: [Services]
+      operationId: listBusinessServices
+      summary: List services offered by the current business
+      parameters:
+        - in: query
+          name: category
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            $ref: "#/components/schemas/ServiceStatus"
+      responses:
+        "200":
+          description: Business services
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BusinessService"
+    post:
+      tags: [Services]
+      operationId: createBusinessService
+      summary: Add a service to the current business
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessServiceCreateDto"
+      responses:
+        "201":
+          description: Created business service
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessService"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /business/services/{businessServiceId}:
+    patch:
+      tags: [Services]
+      operationId: updateBusinessService
+      summary: Update a business service price, category, name, or status
+      parameters:
+        - $ref: "#/components/parameters/BusinessServiceIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessServiceUpdateDto"
+      responses:
+        "200":
+          description: Updated business service
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessService"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Services]
+      operationId: deleteBusinessService
+      summary: Remove a business service
+      parameters:
+        - $ref: "#/components/parameters/BusinessServiceIdPath"
+      responses:
+        "204":
+          description: Removed
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /inventory/catalog:
+    get:
+      tags: [Inventory]
+      operationId: getInventoryCatalog
+      summary: Get inventory categories and option catalogs used by settings forms
+      x-cache:
+        store: redis
+        ttlSeconds: 86400
+        key: "catalog:inventory:v1"
+      responses:
+        "200":
+          description: Inventory catalog
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryCatalog"
+
+  /inventory/items:
+    get:
+      tags: [Inventory]
+      operationId: listInventoryItems
+      summary: List inventory items/products with filters and pagination
+      parameters:
+        - in: query
+          name: category
+          schema:
+            type: string
+        - in: query
+          name: brand
+          description: Alias for company.
+          schema:
+            type: string
+        - in: query
+          name: type
+          schema:
+            type: string
+        - in: query
+          name: viscosity
+          schema:
+            type: string
+        - in: query
+          name: volume
+          schema:
+            type: string
+        - in: query
+          name: application
+          schema:
+            type: string
+        - in: query
+          name: search
+          schema:
+            type: string
+        - $ref: "#/components/parameters/PageQuery"
+        - $ref: "#/components/parameters/LimitQuery"
+      responses:
+        "200":
+          description: Paginated inventory items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedInventoryItems"
+    post:
+      tags: [Inventory]
+      operationId: createInventoryItem
+      summary: Create an inventory item/product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InventoryItemCreateDto"
+      responses:
+        "201":
+          description: Created inventory item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryItem"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /inventory/items/{inventoryItemId}:
+    get:
+      tags: [Inventory]
+      operationId: getInventoryItem
+      summary: Get inventory item details
+      parameters:
+        - $ref: "#/components/parameters/InventoryItemIdPath"
+      responses:
+        "200":
+          description: Inventory item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryItem"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Inventory]
+      operationId: updateInventoryItem
+      summary: Update an inventory item/product
+      parameters:
+        - $ref: "#/components/parameters/InventoryItemIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InventoryItemUpdateDto"
+      responses:
+        "200":
+          description: Updated inventory item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryItem"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Inventory]
+      operationId: deleteInventoryItem
+      summary: Delete or archive an inventory item
+      parameters:
+        - $ref: "#/components/parameters/InventoryItemIdPath"
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /inventory/items/{inventoryItemId}/sell:
+    post:
+      tags: [Inventory]
+      operationId: sellInventoryItem
+      summary: Sell an inventory item and create a payment/stock transaction
+      parameters:
+        - $ref: "#/components/parameters/InventoryItemIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SellInventoryItemDto"
+      responses:
+        "201":
+          description: Sale recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventorySaleResult"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /inventory/transactions:
+    get:
+      tags: [Inventory]
+      operationId: listInventoryTransactions
+      summary: List stock movements and item sale transactions
+      parameters:
+        - in: query
+          name: inventoryItemId
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: type
+          schema:
+            $ref: "#/components/schemas/InventoryTransactionType"
+        - $ref: "#/components/parameters/PageQuery"
+        - $ref: "#/components/parameters/LimitQuery"
+      responses:
+        "200":
+          description: Paginated stock transactions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedInventoryTransactions"
+
+  /payments:
+    get:
+      tags: [Payments]
+      operationId: listPayments
+      summary: List payment history with filters, search, sort, and pagination
+      parameters:
+        - in: query
+          name: method
+          schema:
+            $ref: "#/components/schemas/PaymentMethod"
+        - in: query
+          name: kind
+          schema:
+            $ref: "#/components/schemas/PaymentKind"
+        - in: query
+          name: startDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: endDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: sortBy
+          schema:
+            type: string
+            enum: [id, customer, item, method, date, amount]
+        - $ref: "#/components/parameters/SortOrderQuery"
+        - $ref: "#/components/parameters/PageQuery"
+        - $ref: "#/components/parameters/LimitQuery"
+      responses:
+        "200":
+          description: Paginated payments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedPayments"
+
+  /payments/summary:
+    get:
+      tags: [Payments]
+      operationId: getPaymentSummary
+      summary: Get payment summary cards
+      parameters:
+        - in: query
+          name: startDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: endDate
+          schema:
+            type: string
+            format: date
+      x-cache:
+        store: redis
+        ttlSeconds: 120
+        key: "business:{businessId}:payments:summary:{startDate}:{endDate}"
+      responses:
+        "200":
+          description: Payment summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentSummary"
+
+  /payments/{paymentId}:
+    get:
+      tags: [Payments]
+      operationId: getPayment
+      summary: Get payment details
+      parameters:
+        - $ref: "#/components/parameters/PaymentIdPath"
+      responses:
+        "200":
+          description: Payment details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /payments/{paymentId}/refund:
+    post:
+      tags: [Payments]
+      operationId: refundPayment
+      summary: Refund a payment
+      parameters:
+        - $ref: "#/components/parameters/PaymentIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefundPaymentDto"
+      responses:
+        "201":
+          description: Refund created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentRefund"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /payments/batch/refund:
+    post:
+      tags: [Payments]
+      operationId: refundPayments
+      summary: Refund selected payments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BatchRefundPaymentsDto"
+      responses:
+        "200":
+          description: Batch refund result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchMutationResult"
+
+  /payments/export-jobs:
+    post:
+      tags: [Payments]
+      operationId: createPaymentExportJob
+      summary: Create an async payment export job
+      x-queue:
+        name: payment-export
+        reason: Large Excel, PDF, Word, Google Docs, and dashboard exports should run outside the request cycle.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentExportCreateDto"
+      responses:
+        "202":
+          description: Export job queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExportJob"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /payments/export-jobs/{jobId}:
+    get:
+      tags: [Payments]
+      operationId: getPaymentExportJob
+      summary: Get export job status and download metadata
+      parameters:
+        - $ref: "#/components/parameters/JobIdPath"
+      responses:
+        "200":
+          description: Export job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExportJob"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /payments/export-jobs/{jobId}/download:
+    get:
+      tags: [Payments]
+      operationId: downloadPaymentExport
+      summary: Download a completed payment export file
+      parameters:
+        - $ref: "#/components/parameters/JobIdPath"
+      responses:
+        "200":
+          description: Export file
+          content:
+            application/vnd.ms-excel:
+              schema:
+                type: string
+                format: binary
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            application/msword:
+              schema:
+                type: string
+                format: binary
+            text/html:
+              schema:
+                type: string
+                format: binary
+            application/json:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Export is not complete yet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /reports/application-stats:
+    get:
+      tags: [Reports]
+      operationId: getApplicationStats
+      summary: Get growth report stats, sellables, and chart series
+      parameters:
+        - in: query
+          name: period
+          required: true
+          schema:
+            $ref: "#/components/schemas/ReportPeriod"
+        - in: query
+          name: startDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: endDate
+          schema:
+            type: string
+            format: date
+      x-cache:
+        store: redis
+        ttlSeconds: 300
+        key: "business:{businessId}:reports:application-stats:{period}:{startDate}:{endDate}"
+      responses:
+        "200":
+          description: Application stats report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationStats"
+
+  /billing/banks:
+    get:
+      tags: [Billing]
+      operationId: listSupportedBanks
+      summary: List supported banks for billing account setup
+      x-cache:
+        store: redis
+        ttlSeconds: 86400
+        key: "catalog:banks:v1"
+      responses:
+        "200":
+          description: Supported banks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SupportedBank"
+
+  /billing/accounts:
+    get:
+      tags: [Billing]
+      operationId: listBillingAccounts
+      summary: List business billing/bank accounts
+      responses:
+        "200":
+          description: Billing accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BillingAccount"
+    post:
+      tags: [Billing]
+      operationId: createBillingAccount
+      summary: Create a billing account draft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BankAccountCreateDto"
+      responses:
+        "201":
+          description: Billing account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingAccount"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /billing/accounts/{billingAccountId}:
+    get:
+      tags: [Billing]
+      operationId: getBillingAccount
+      summary: Get billing account details
+      parameters:
+        - $ref: "#/components/parameters/BillingAccountIdPath"
+      responses:
+        "200":
+          description: Billing account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingAccount"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Billing]
+      operationId: updateBillingAccount
+      summary: Update billing account draft details
+      parameters:
+        - $ref: "#/components/parameters/BillingAccountIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BankAccountUpdateDto"
+      responses:
+        "200":
+          description: Updated billing account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingAccount"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags: [Billing]
+      operationId: deleteBillingAccount
+      summary: Delete a billing account draft
+      parameters:
+        - $ref: "#/components/parameters/BillingAccountIdPath"
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /billing/accounts/{billingAccountId}/submit:
+    post:
+      tags: [Billing]
+      operationId: submitBillingAccount
+      summary: Submit billing account for verification
+      x-queue:
+        name: billing-verification
+        reason: Bank account verification can be slow and should be retried asynchronously.
+      parameters:
+        - $ref: "#/components/parameters/BillingAccountIdPath"
+      responses:
+        "202":
+          description: Billing account submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingAccount"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /inbox/messages:
+    get:
+      tags: [Inbox]
+      operationId: listInboxMessages
+      summary: List inbox messages/notifications for the current account
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [unread, read, archived]
+        - $ref: "#/components/parameters/PageQuery"
+        - $ref: "#/components/parameters/LimitQuery"
+      responses:
+        "200":
+          description: Paginated messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedInboxMessages"
+
+  /inbox/messages/{messageId}/read:
+    post:
+      tags: [Inbox]
+      operationId: markInboxMessageRead
+      summary: Mark an inbox message as read
+      parameters:
+        - $ref: "#/components/parameters/MessageIdPath"
+      responses:
+        "200":
+          description: Updated message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InboxMessage"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /support/help-center:
+    get:
+      tags: [Support]
+      operationId: getHelpCenter
+      summary: Get help center categories and articles
+      security: []
+      x-cache:
+        store: redis
+        ttlSeconds: 3600
+        key: "support:help-center:{locale}"
+      parameters:
+        - in: query
+          name: locale
+          schema:
+            type: string
+            enum: [en, ar]
+            default: en
+      responses:
+        "200":
+          description: Help center content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HelpCenter"
+
+  /support/tickets:
+    post:
+      tags: [Support]
+      operationId: createSupportTicket
+      summary: Create a support ticket/contact request
+      x-queue:
+        name: notification-dispatch
+        reason: Notify support/admins without blocking the request.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupportTicketCreateDto"
+      responses:
+        "201":
+          description: Support ticket created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportTicket"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /feedback:
+    post:
+      tags: [Support]
+      operationId: createFeedback
+      summary: Submit product feedback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeedbackCreateDto"
+      responses:
+        "201":
+          description: Feedback captured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feedback"
+
+  /locations/search:
+    get:
+      tags: [Locations]
+      operationId: searchLocations
+      summary: Search geocoded locations for the location picker
+      security: []
+      parameters:
+        - in: query
+          name: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 8
+      x-cache:
+        store: redis
+        ttlSeconds: 86400
+        key: "geo:search:{query}:{limit}"
+      responses:
+        "200":
+          description: Location search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LocationSearchResult"
+
+  /locations/nearby:
+    get:
+      tags: [Locations]
+      operationId: getNearbyPointsOfInterest
+      summary: Get nearby points of interest around a selected coordinate
+      security: []
+      parameters:
+        - in: query
+          name: lat
+          required: true
+          schema:
+            type: number
+            format: double
+        - in: query
+          name: lng
+          required: true
+          schema:
+            type: number
+            format: double
+        - in: query
+          name: radiusMeters
+          schema:
+            type: integer
+            minimum: 100
+            maximum: 10000
+            default: 1500
+      x-cache:
+        store: redis
+        ttlSeconds: 3600
+        key: "geo:nearby:{lat}:{lng}:{radiusMeters}"
+      responses:
+        "200":
+          description: Nearby points of interest
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PointOfInterest"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    PageQuery:
+      in: query
+      name: page
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    LimitQuery:
+      in: query
+      name: limit
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+    SortOrderQuery:
+      in: query
+      name: sortOrder
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: asc
+    BookingIdPath:
+      in: path
+      name: bookingId
+      required: true
+      schema:
+        type: string
+    CustomerIdPath:
+      in: path
+      name: customerId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    VehicleIdPath:
+      in: path
+      name: vehicleId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    BusinessServiceIdPath:
+      in: path
+      name: businessServiceId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    InventoryItemIdPath:
+      in: path
+      name: inventoryItemId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PaymentIdPath:
+      in: path
+      name: paymentId
+      required: true
+      schema:
+        type: string
+    BillingAccountIdPath:
+      in: path
+      name: billingAccountId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    JobIdPath:
+      in: path
+      name: jobId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    MessageIdPath:
+      in: path
+      name: messageId
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    Unauthorized:
+      description: Authentication is missing, invalid, or expired
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    Forbidden:
+      description: The authenticated user cannot access this resource
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    Conflict:
+      description: Request conflicts with current state
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+
+  schemas:
+    ApiError:
+      type: object
+      required: [statusCode, code, message]
+      properties:
+        statusCode:
+          type: integer
+          example: 400
+        code:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          example: Please enter a valid email address.
+        details:
+          type: array
+          items:
+            $ref: "#/components/schemas/ApiErrorDetail"
+        requestId:
+          type: string
+          nullable: true
+
+    ApiErrorDetail:
+      type: object
+      properties:
+        field:
+          type: string
+          example: email
+        message:
+          type: string
+          example: Please enter a valid email address.
+
+    HealthResponse:
+      type: object
+      required: [status, timestamp]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        timestamp:
+          type: string
+          format: date-time
+        version:
+          type: string
+        redis:
+          type: string
+          enum: [ok, degraded, down]
+        database:
+          type: string
+          enum: [ok, degraded, down]
+        queues:
+          type: string
+          enum: [ok, degraded, down]
+
+    Pagination:
+      type: object
+      required: [total, page, limit, pages]
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        pages:
+          type: integer
+
+    BatchMutationResult:
+      type: object
+      required: [requested, succeeded, failed]
+      properties:
+        requested:
+          type: integer
+        succeeded:
+          type: integer
+        failed:
+          type: integer
+        failedIds:
+          type: array
+          items:
+            type: string
+
+    Role:
+      type: string
+      enum: [client, business, admin]
+
+    SignInDto:
+      type: object
+      required: [email, password, role]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 12
+        role:
+          type: string
+          enum: [client, business, admin]
+        rememberMe:
+          type: boolean
+          default: false
+
+    RefreshTokenDto:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+
+    AuthResponse:
+      type: object
+      required: [accessToken, refreshToken, user]
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        tokenType:
+          type: string
+          default: Bearer
+        expiresIn:
+          type: integer
+          description: Access token lifetime in seconds.
+          example: 900
+        user:
+          $ref: "#/components/schemas/User"
+
+    BusinessSignUpDto:
+      type: object
+      required:
+        - email
+        - password
+        - name
+        - phoneNumber
+        - country
+        - city
+        - commercialRegistrationNumber
+        - taxIdentificationNumber
+        - businessOwner
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 12
+          pattern: "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9]).{12,}$"
+        name:
+          type: string
+          minLength: 1
+        phoneNumber:
+          type: string
+        country:
+          type: string
+        city:
+          type: string
+        commercialRegistrationNumber:
+          type: string
+          description: Correct spelling for the backend/database field.
+        commercialRegistraionNumber:
+          type: string
+          deprecated: true
+          description: Legacy frontend typo. Accept only as a transitional alias.
+        taxIdentificationNumber:
+          type: string
+        businessOwner:
+          $ref: "#/components/schemas/BusinessOwnerCreateDto"
+
+    BusinessOwnerCreateDto:
+      type: object
+      required: [email, firstName, lastName, phoneNumber, streetAddress, country, city]
+      properties:
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phoneNumber:
+          type: string
+        streetAddress:
+          type: string
+        country:
+          type: string
+        city:
+          type: string
+
+    User:
+      type: object
+      required: [id, email, role, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        businessId:
+          type: string
+          format: uuid
+          nullable: true
+        email:
+          type: string
+          format: email
+        role:
+          $ref: "#/components/schemas/Role"
+        firstName:
+          type: string
+          nullable: true
+        lastName:
+          type: string
+          nullable: true
+        phoneNumber:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          nullable: true
+        onboardingCompleted:
+          type: boolean
+        twoFactorEnabled:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Address:
+      type: object
+      required: [country, streetAddress, city, state, zipCode]
+      properties:
+        country:
+          type: string
+          example: Saudi Arabia
+        streetAddress:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        zipCode:
+          type: string
+        lat:
+          type: number
+          format: double
+          nullable: true
+        lng:
+          type: number
+          format: double
+          nullable: true
+
+    AccountProfile:
+      type: object
+      required: [id, firstName, lastName, address]
+      properties:
+        id:
+          type: string
+          format: uuid
+        firstName:
+          type: string
+        lastName:
+          type: string
+        birthDate:
+          type: string
+          format: date
+          nullable: true
+        phoneNumber:
+          type: string
+          nullable: true
+        address:
+          $ref: "#/components/schemas/Address"
+        setupStatus:
+          $ref: "#/components/schemas/SetupStatus"
+
+    AccountProfileUpdateDto:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        birthDate:
+          type: string
+          format: date
+          nullable: true
+        phoneNumber:
+          type: string
+        address:
+          $ref: "#/components/schemas/Address"
+
+    SecurityPreferenceKey:
+      type: string
+      enum:
+        - loginAlerts
+        - newDeviceApproval
+        - sessionTimeout
+        - paymentExportConfirmation
+
+    SecurityPreference:
+      type: object
+      required: [key, title, description, enabled]
+      properties:
+        key:
+          $ref: "#/components/schemas/SecurityPreferenceKey"
+        title:
+          type: string
+        description:
+          type: string
+        enabled:
+          type: boolean
+
+    SecuritySettings:
+      type: object
+      required: [preferences, mfa]
+      properties:
+        preferences:
+          type: array
+          items:
+            $ref: "#/components/schemas/SecurityPreference"
+        mfa:
+          $ref: "#/components/schemas/MfaSettings"
+
+    SecuritySettingsUpdateDto:
+      type: object
+      required: [preferences]
+      properties:
+        preferences:
+          type: object
+          additionalProperties:
+            type: boolean
+          example:
+            loginAlerts: true
+            newDeviceApproval: true
+            sessionTimeout: true
+            paymentExportConfirmation: false
+
+    MfaMethod:
+      type: string
+      enum: [sms, authenticator]
+
+    MfaSettings:
+      type: object
+      required: [enabled]
+      properties:
+        enabled:
+          type: boolean
+        method:
+          $ref: "#/components/schemas/MfaMethod"
+        phone:
+          type: string
+          nullable: true
+        verifiedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    MfaUpdateDto:
+      type: object
+      required: [enabled]
+      properties:
+        enabled:
+          type: boolean
+        method:
+          $ref: "#/components/schemas/MfaMethod"
+        phone:
+          type: string
+          nullable: true
+          pattern: "^\\+?[0-9\\s()-]{8,20}$"
+
+    NotificationType:
+      type: string
+      enum: [accepted, declined, success, error]
+
+    NotificationPreferenceKey:
+      type: string
+      enum:
+        - bookingAccepted
+        - bookingDeclined
+        - settingsSaved
+        - securitySettingsUpdated
+        - mfaUpdated
+        - exportGenerated
+        - storageItemSold
+
+    NotificationPreference:
+      type: object
+      required: [key, title, description, enabled]
+      properties:
+        key:
+          $ref: "#/components/schemas/NotificationPreferenceKey"
+        title:
+          type: string
+        description:
+          type: string
+        enabled:
+          type: boolean
+
+    NotificationPreferences:
+      type: object
+      required: [preferences]
+      properties:
+        preferences:
+          type: array
+          items:
+            $ref: "#/components/schemas/NotificationPreference"
+
+    NotificationPreferencesUpdateDto:
+      type: object
+      required: [preferences]
+      properties:
+        preferences:
+          type: object
+          additionalProperties:
+            type: boolean
+          example:
+            bookingAccepted: true
+            bookingDeclined: true
+            settingsSaved: true
+            securitySettingsUpdated: true
+            mfaUpdated: true
+            exportGenerated: true
+            storageItemSold: true
+
+    OnboardingStepId:
+      type: string
+      enum:
+        - getting-started
+        - owner-information
+        - business-information
+        - bank-details
+        - tax-information
+        - two-factor-auth
+        - review
+        - submitted
+
+    OnboardingProgress:
+      type: object
+      required: [currentStep, completedSteps, percent, submitted]
+      properties:
+        currentStep:
+          $ref: "#/components/schemas/OnboardingStepId"
+        completedSteps:
+          type: array
+          items:
+            $ref: "#/components/schemas/OnboardingStepId"
+        percent:
+          type: integer
+          minimum: 0
+          maximum: 100
+        submitted:
+          type: boolean
+        missingRequirements:
+          type: array
+          items:
+            type: string
+
+    OnboardingStepResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+        progress:
+          $ref: "#/components/schemas/OnboardingProgress"
+        nextStep:
+          $ref: "#/components/schemas/OnboardingStepId"
+
+    OwnerInformationDto:
+      type: object
+      required: [firstName, lastName, email, location]
+      properties:
+        firstName:
+          type: string
+          pattern: "^[A-Za-z]+$"
+        lastName:
+          type: string
+          pattern: "^[A-Za-z]+$"
+        email:
+          type: string
+          format: email
+        location:
+          $ref: "#/components/schemas/Address"
+
+    BusinessType:
+      type: string
+      enum: [general-repair, specialized, body-paint, quick-service]
+
+    EmployeeCount:
+      type: string
+      enum: [small, medium, large]
+
+    BusinessInformationDto:
+      type: object
+      required: [businessName, businessType, employeeCount, location]
+      properties:
+        businessName:
+          type: string
+        businessType:
+          $ref: "#/components/schemas/BusinessType"
+        employeeCount:
+          $ref: "#/components/schemas/EmployeeCount"
+        location:
+          $ref: "#/components/schemas/Address"
+
+    WorkingHours:
+      type: object
+      properties:
+        open:
+          type: string
+          pattern: "^([01]\\d|2[0-3]):[0-5]\\d$"
+          example: "09:00"
+        close:
+          type: string
+          pattern: "^([01]\\d|2[0-3]):[0-5]\\d$"
+          example: "18:00"
+        timezone:
+          type: string
+          example: Africa/Cairo
+
+    Business:
+      type: object
+      required: [id, name, email, phoneNumber, address, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        phoneNumber:
+          type: string
+        commercialRegistrationNumber:
+          type: string
+          nullable: true
+        taxIdentificationNumber:
+          type: string
+          nullable: true
+        businessType:
+          $ref: "#/components/schemas/BusinessType"
+        employeeCount:
+          $ref: "#/components/schemas/EmployeeCount"
+        address:
+          $ref: "#/components/schemas/Address"
+        workingHours:
+          $ref: "#/components/schemas/WorkingHours"
+        onboardingCompleted:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    BusinessUpdateDto:
+      type: object
+      properties:
+        name:
+          type: string
+        phoneNumber:
+          type: string
+        email:
+          type: string
+          format: email
+        commercialRegistrationNumber:
+          type: string
+        taxIdentificationNumber:
+          type: string
+        businessType:
+          $ref: "#/components/schemas/BusinessType"
+        employeeCount:
+          $ref: "#/components/schemas/EmployeeCount"
+        address:
+          $ref: "#/components/schemas/Address"
+        workingHours:
+          $ref: "#/components/schemas/WorkingHours"
+
+    SetupStatus:
+      type: string
+      enum: [ok, warning, critical]
+
+    SetupWarningSeverity:
+      type: string
+      enum: [warning, critical]
+
+    SetupWarning:
+      type: object
+      required: [id, title, description, segment, severity]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        segment:
+          type: string
+          enum: [billing, personal, security, business, services, inventory]
+        severity:
+          $ref: "#/components/schemas/SetupWarningSeverity"
+
+    DashboardSummary:
+      type: object
+      required: [totalBookings, inProgress, completed, pending, cancelled, accepted]
+      properties:
+        totalBookings:
+          type: integer
+        inProgress:
+          type: integer
+        completed:
+          type: integer
+        pending:
+          type: integer
+        cancelled:
+          type: integer
+        accepted:
+          type: integer
+        totalRevenue:
+          type: number
+          format: double
+        setupWarnings:
+          type: array
+          items:
+            $ref: "#/components/schemas/SetupWarning"
+
+    CalendarBookings:
+      type: object
+      required: [year, month, bookings]
+      properties:
+        year:
+          type: integer
+        month:
+          type: integer
+          minimum: 0
+          maximum: 11
+        bookings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Booking"
+
+    WidgetType:
+      type: string
+      enum: [profile, calendar, status, setupWarnings]
+
+    DashboardWidget:
+      type: object
+      required: [id, title, type, span]
+      properties:
+        id:
+          type: string
+          example: setup-warnings
+        title:
+          type: string
+        type:
+          $ref: "#/components/schemas/WidgetType"
+        statusKey:
+          type: string
+          enum: [inProgress, completed, pending, cancelled]
+          nullable: true
+        color:
+          type: string
+          nullable: true
+          example: "#10b981"
+        span:
+          type: integer
+          minimum: 1
+          maximum: 4
+
+    DashboardWidgetPreferences:
+      type: object
+      required: [activeWidgets, inactiveWidgets]
+      properties:
+        activeWidgets:
+          type: array
+          items:
+            $ref: "#/components/schemas/DashboardWidget"
+        inactiveWidgets:
+          type: array
+          items:
+            $ref: "#/components/schemas/DashboardWidget"
+
+    DashboardWidgetPreferencesUpdateDto:
+      type: object
+      required: [activeWidgetIds]
+      properties:
+        activeWidgetIds:
+          type: array
+          items:
+            type: string
+          example: [profile, calendar, setup-warnings, in-progress, completed, pending, cancelled]
+
+    BookingStatus:
+      type: string
+      enum: [Pending, Accepted, In-Progress, Completed, Cancelled]
+
+    ServiceDetail:
+      type: object
+      required: [label, value]
+      properties:
+        label:
+          type: string
+        value:
+          type: string
+
+    Booking:
+      type: object
+      required:
+        - id
+        - serviceName
+        - name
+        - carMake
+        - carModel
+        - carYear
+        - startDate
+        - endDate
+        - status
+        - price
+      properties:
+        id:
+          type: string
+          example: BK-10023
+        businessId:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        vehicleId:
+          type: string
+          format: uuid
+        serviceId:
+          type: string
+          format: uuid
+        serviceName:
+          type: string
+        serviceIcon:
+          type: string
+          nullable: true
+        ownerIcon:
+          type: string
+          nullable: true
+        name:
+          type: string
+          description: Customer display name, kept to match the current frontend entity.
+        carMake:
+          type: string
+        carModel:
+          type: string
+        carYear:
+          type: string
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        status:
+          $ref: "#/components/schemas/BookingStatus"
+        price:
+          type: number
+          format: double
+        currency:
+          type: string
+          default: USD
+        notes:
+          type: string
+          nullable: true
+        serviceDetails:
+          type: array
+          items:
+            $ref: "#/components/schemas/ServiceDetail"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    BookingCreateDto:
+      type: object
+      required: [serviceId, customerId, vehicleId, startDate, endDate]
+      properties:
+        serviceId:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        vehicleId:
+          type: string
+          format: uuid
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        status:
+          $ref: "#/components/schemas/BookingStatus"
+        price:
+          type: number
+          format: double
+        currency:
+          type: string
+          default: USD
+        notes:
+          type: string
+        serviceDetails:
+          type: array
+          items:
+            $ref: "#/components/schemas/ServiceDetail"
+
+    BookingUpdateDto:
+      type: object
+      properties:
+        serviceId:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        vehicleId:
+          type: string
+          format: uuid
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        status:
+          $ref: "#/components/schemas/BookingStatus"
+        price:
+          type: number
+          format: double
+        notes:
+          type: string
+        serviceDetails:
+          type: array
+          items:
+            $ref: "#/components/schemas/ServiceDetail"
+
+    BookingStatusUpdateDto:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: "#/components/schemas/BookingStatus"
+        reason:
+          type: string
+          nullable: true
+
+    BookingBatchStatusUpdateDto:
+      type: object
+      required: [ids, status]
+      properties:
+        ids:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        status:
+          $ref: "#/components/schemas/BookingStatus"
+        reason:
+          type: string
+          nullable: true
+
+    PaginatedBookings:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Booking"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    Customer:
+      type: object
+      required: [id, businessId, firstName, lastName, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        businessId:
+          type: string
+          format: uuid
+        firstName:
+          type: string
+        lastName:
+          type: string
+        displayName:
+          type: string
+        email:
+          type: string
+          format: email
+          nullable: true
+        phoneNumber:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CustomerCreateDto:
+      type: object
+      required: [firstName, lastName]
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          format: email
+        phoneNumber:
+          type: string
+        avatarUrl:
+          type: string
+
+    CustomerUpdateDto:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          format: email
+        phoneNumber:
+          type: string
+        avatarUrl:
+          type: string
+
+    PaginatedCustomers:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Customer"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    Vehicle:
+      type: object
+      required: [id, customerId, make, model, year]
+      properties:
+        id:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        make:
+          type: string
+        model:
+          type: string
+        year:
+          type: string
+        plate:
+          type: string
+          nullable: true
+        vin:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    VehicleCreateDto:
+      type: object
+      required: [customerId, make, model, year]
+      properties:
+        customerId:
+          type: string
+          format: uuid
+        make:
+          type: string
+        model:
+          type: string
+        year:
+          type: string
+        plate:
+          type: string
+        vin:
+          type: string
+
+    VehicleUpdateDto:
+      type: object
+      properties:
+        customerId:
+          type: string
+          format: uuid
+        make:
+          type: string
+        model:
+          type: string
+        year:
+          type: string
+        plate:
+          type: string
+        vin:
+          type: string
+
+    PaginatedVehicles:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Vehicle"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    ConfigOption:
+      type: object
+      required: [key, label, options]
+      properties:
+        key:
+          type: string
+          example: oil-type
+        label:
+          type: string
+          example: Oil Types
+        options:
+          type: array
+          items:
+            type: string
+
+    ServiceCategory:
+      type: object
+      required: [id, name, services, configOptions]
+      properties:
+        id:
+          type: string
+          example: engine-services
+        name:
+          type: string
+          example: Engine Services
+        icon:
+          type: string
+          nullable: true
+        services:
+          type: array
+          items:
+            $ref: "#/components/schemas/CatalogService"
+        configOptions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConfigOption"
+
+    CatalogService:
+      type: object
+      required: [id, name, categoryId, category]
+      properties:
+        id:
+          type: string
+          example: oil-change
+        name:
+          type: string
+          example: Oil Change
+        categoryId:
+          type: string
+          example: engine-services
+        category:
+          type: string
+          example: Engine Services
+        icon:
+          type: string
+          nullable: true
+
+    ServiceStatus:
+      type: string
+      enum: [active, inactive]
+
+    BusinessService:
+      type: object
+      required: [id, businessId, category, name, price, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        businessId:
+          type: string
+          format: uuid
+        serviceId:
+          type: string
+          nullable: true
+          description: Seeded catalog service id when this row maps to catalog.
+        category:
+          type: string
+          example: Engine Services
+        name:
+          type: string
+          example: Oil Change
+        price:
+          type: number
+          format: double
+        currency:
+          type: string
+          default: USD
+        status:
+          $ref: "#/components/schemas/ServiceStatus"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    BusinessServiceCreateDto:
+      type: object
+      required: [category, name, price]
+      properties:
+        serviceId:
+          type: string
+          nullable: true
+        category:
+          type: string
+        name:
+          type: string
+        price:
+          type: number
+          format: double
+        currency:
+          type: string
+          default: USD
+        status:
+          $ref: "#/components/schemas/ServiceStatus"
+
+    BusinessServiceUpdateDto:
+      type: object
+      properties:
+        serviceId:
+          type: string
+          nullable: true
+        category:
+          type: string
+        name:
+          type: string
+        price:
+          type: number
+          format: double
+        currency:
+          type: string
+        status:
+          $ref: "#/components/schemas/ServiceStatus"
+
+    InventoryCatalog:
+      type: object
+      required: [categories]
+      properties:
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/InventoryCategory"
+
+    InventoryCategory:
+      type: object
+      required: [name, icon, itemNames, companies, specifications, capacities, details, usedInServices]
+      properties:
+        name:
+          type: string
+          example: Oil
+        icon:
+          type: string
+        itemNames:
+          type: array
+          items:
+            type: string
+        companies:
+          type: array
+          items:
+            type: string
+        specifications:
+          type: array
+          items:
+            type: string
+        capacities:
+          type: array
+          items:
+            type: string
+        details:
+          type: array
+          items:
+            type: string
+        usedInServices:
+          type: array
+          items:
+            type: string
+
+    InventoryItemStatus:
+      type: string
+      enum: [active, inactive, archived]
+
+    InventoryItem:
+      type: object
+      required: [id, businessId, category, name, price, quantity, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        businessId:
+          type: string
+          format: uuid
+        category:
+          type: string
+          example: Oil
+        name:
+          type: string
+          example: Synthetic Engine Oil
+        company:
+          type: string
+          nullable: true
+          example: Shell
+        brand:
+          type: string
+          nullable: true
+          description: Display alias for company used by the storage inventory filters.
+        type:
+          type: string
+          nullable: true
+          example: Fully Synthetic
+        specification:
+          type: string
+          nullable: true
+          example: 5W-30
+        viscosity:
+          type: string
+          nullable: true
+          example: 5W-30
+        capacity:
+          type: string
+          nullable: true
+          example: 4L
+        volume:
+          type: string
+          nullable: true
+          example: 4L
+        apiSpec:
+          type: string
+          nullable: true
+          example: SN
+        application:
+          type: string
+          nullable: true
+          example: Gasoline
+        details:
+          type: string
+          nullable: true
+        usedInServices:
+          type: array
+          items:
+            type: string
+        imageUrl:
+          type: string
+          nullable: true
+        price:
+          type: number
+          format: double
+        purchasePrice:
+          type: number
+          format: double
+          nullable: true
+        currency:
+          type: string
+          default: USD
+        deliveryTime:
+          type: string
+          nullable: true
+          example: 2 Days
+        quantity:
+          type: integer
+          minimum: 0
+        lowStockThreshold:
+          type: integer
+          minimum: 0
+          default: 0
+        status:
+          $ref: "#/components/schemas/InventoryItemStatus"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    InventoryItemCreateDto:
+      type: object
+      required: [category, name, price]
+      properties:
+        category:
+          type: string
+        name:
+          type: string
+        company:
+          type: string
+        brand:
+          type: string
+        type:
+          type: string
+        specification:
+          type: string
+        viscosity:
+          type: string
+        capacity:
+          type: string
+        volume:
+          type: string
+        apiSpec:
+          type: string
+        application:
+          type: string
+        details:
+          type: string
+        usedInServices:
+          type: array
+          items:
+            type: string
+        imageUrl:
+          type: string
+        price:
+          type: number
+          format: double
+        purchasePrice:
+          type: number
+          format: double
+        currency:
+          type: string
+          default: USD
+        deliveryTime:
+          type: string
+        quantity:
+          type: integer
+          minimum: 0
+          default: 0
+        lowStockThreshold:
+          type: integer
+          minimum: 0
+          default: 0
+        status:
+          $ref: "#/components/schemas/InventoryItemStatus"
+
+    InventoryItemUpdateDto:
+      type: object
+      properties:
+        category:
+          type: string
+        name:
+          type: string
+        company:
+          type: string
+        brand:
+          type: string
+        type:
+          type: string
+        specification:
+          type: string
+        viscosity:
+          type: string
+        capacity:
+          type: string
+        volume:
+          type: string
+        apiSpec:
+          type: string
+        application:
+          type: string
+        details:
+          type: string
+        usedInServices:
+          type: array
+          items:
+            type: string
+        imageUrl:
+          type: string
+        price:
+          type: number
+          format: double
+        purchasePrice:
+          type: number
+          format: double
+        currency:
+          type: string
+        deliveryTime:
+          type: string
+        quantity:
+          type: integer
+          minimum: 0
+        lowStockThreshold:
+          type: integer
+          minimum: 0
+        status:
+          $ref: "#/components/schemas/InventoryItemStatus"
+
+    PaginatedInventoryItems:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/InventoryItem"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    SellInventoryItemDto:
+      type: object
+      required: [quantity, paymentMethod]
+      properties:
+        quantity:
+          type: integer
+          minimum: 1
+          default: 1
+        customerId:
+          type: string
+          format: uuid
+          nullable: true
+        paymentMethod:
+          $ref: "#/components/schemas/PaymentMethod"
+        unitPrice:
+          type: number
+          format: double
+          nullable: true
+
+    InventorySaleResult:
+      type: object
+      required: [item, transaction, payment]
+      properties:
+        item:
+          $ref: "#/components/schemas/InventoryItem"
+        transaction:
+          $ref: "#/components/schemas/InventoryTransaction"
+        payment:
+          $ref: "#/components/schemas/Payment"
+
+    InventoryTransactionType:
+      type: string
+      enum: [purchase, sale, adjustment, return]
+
+    InventoryTransaction:
+      type: object
+      required: [id, inventoryItemId, type, quantity, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        inventoryItemId:
+          type: string
+          format: uuid
+        type:
+          $ref: "#/components/schemas/InventoryTransactionType"
+        quantity:
+          type: integer
+        unitPrice:
+          type: number
+          format: double
+          nullable: true
+        paymentId:
+          type: string
+          nullable: true
+        note:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    PaginatedInventoryTransactions:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/InventoryTransaction"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    PaymentMethod:
+      type: string
+      enum: [VISA, Fawry, PayPal, Cash]
+
+    PaymentKind:
+      type: string
+      enum: [item, service, car]
+
+    PaymentStatus:
+      type: string
+      enum: [paid, pending, failed, refunded, partially_refunded]
+
+    Payment:
+      type: object
+      required: [id, customer, item, method, date, amount, kind, status]
+      properties:
+        id:
+          type: string
+          example: PAY-8821
+        businessId:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+          nullable: true
+        customer:
+          type: string
+        bookingId:
+          type: string
+          nullable: true
+        inventoryItemId:
+          type: string
+          format: uuid
+          nullable: true
+        item:
+          type: string
+          description: Display name for the item, service, or car payment.
+        method:
+          $ref: "#/components/schemas/PaymentMethod"
+        date:
+          type: string
+          format: date
+        amount:
+          type: number
+          format: double
+        currency:
+          type: string
+          default: USD
+        kind:
+          $ref: "#/components/schemas/PaymentKind"
+        status:
+          $ref: "#/components/schemas/PaymentStatus"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PaymentSummary:
+      type: object
+      required: [monthlyPayments, yearlyPayments, itemsSold, servicesDone]
+      properties:
+        monthlyPayments:
+          type: number
+          format: double
+        yearlyPayments:
+          type: number
+          format: double
+        itemsSold:
+          type: integer
+        servicesDone:
+          type: integer
+        currency:
+          type: string
+          default: USD
+
+    PaginatedPayments:
+      type: object
+      required: [data, summary, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Payment"
+        summary:
+          $ref: "#/components/schemas/PaymentSummary"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    RefundPaymentDto:
+      type: object
+      properties:
+        amount:
+          type: number
+          format: double
+          nullable: true
+          description: Omit for full refund.
+        reason:
+          type: string
+          nullable: true
+
+    BatchRefundPaymentsDto:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        reason:
+          type: string
+          nullable: true
+
+    PaymentRefund:
+      type: object
+      required: [id, paymentId, amount, status, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        paymentId:
+          type: string
+        amount:
+          type: number
+          format: double
+        reason:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [pending, succeeded, failed]
+        createdAt:
+          type: string
+          format: date-time
+
+    PaymentExportFormat:
+      type: string
+      enum: [excel, pdf, word, google-docs, dashboard]
+
+    PaymentExportCreateDto:
+      type: object
+      required: [format, categories]
+      properties:
+        format:
+          $ref: "#/components/schemas/PaymentExportFormat"
+        startDate:
+          type: string
+          format: date
+          nullable: true
+        endDate:
+          type: string
+          format: date
+          nullable: true
+        categories:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/PaymentKind"
+        minPrice:
+          type: number
+          format: double
+          nullable: true
+        maxPrice:
+          type: number
+          format: double
+          nullable: true
+        paymentIds:
+          type: array
+          items:
+            type: string
+
+    ExportJobStatus:
+      type: string
+      enum: [queued, processing, completed, failed, expired]
+
+    ExportJob:
+      type: object
+      required: [id, type, status, format, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [payment-export]
+        status:
+          $ref: "#/components/schemas/ExportJobStatus"
+        format:
+          $ref: "#/components/schemas/PaymentExportFormat"
+        filters:
+          $ref: "#/components/schemas/PaymentExportCreateDto"
+        matchedCount:
+          type: integer
+          nullable: true
+        downloadUrl:
+          type: string
+          nullable: true
+        errorMessage:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    ReportPeriod:
+      type: string
+      enum: [week, month, year]
+
+    ReportStatIcon:
+      type: string
+      enum: [customers, bookings, revenue, cars]
+
+    ReportStat:
+      type: object
+      required: [key, label, value, icon, delta]
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        value:
+          type: number
+          format: double
+        icon:
+          $ref: "#/components/schemas/ReportStatIcon"
+        delta:
+          type: number
+          format: double
+
+    ReportSellable:
+      type: object
+      required: [key, label, profit, units, delta]
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        profit:
+          type: array
+          items:
+            type: number
+            format: double
+        units:
+          type: integer
+        delta:
+          type: number
+          format: double
+
+    ApplicationStats:
+      type: object
+      required: [period, rangeLabel, axisLabels, stats, services, items]
+      properties:
+        period:
+          $ref: "#/components/schemas/ReportPeriod"
+        rangeLabel:
+          type: string
+          example: Apr 15, 2026 - Apr 21, 2026
+        axisLabels:
+          type: array
+          items:
+            type: string
+        stats:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReportStat"
+        services:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReportSellable"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReportSellable"
+
+    SupportedBank:
+      type: object
+      required: [name, imageUrl, supportsBulkPayment]
+      properties:
+        name:
+          type: string
+          example: CIB Bank
+        imageUrl:
+          type: string
+          example: /banks_images/CIB Bank.png
+        supportsBulkPayment:
+          type: boolean
+
+    BillingAccountStatus:
+      type: string
+      enum: [draft, pending_review, verified, rejected, disabled]
+
+    BillingAccount:
+      type: object
+      required: [id, businessId, bankName, accountHolder, accountNumber, iban, swift, branch, billingEmail, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        businessId:
+          type: string
+          format: uuid
+        bankName:
+          type: string
+        accountHolder:
+          type: string
+        accountNumber:
+          type: string
+        iban:
+          type: string
+        swift:
+          type: string
+        branch:
+          type: string
+        billingEmail:
+          type: string
+          format: email
+        status:
+          $ref: "#/components/schemas/BillingAccountStatus"
+        verificationNotes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        submittedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    BankAccountCreateDto:
+      type: object
+      required: [bankName, accountHolder, accountNumber, iban, swift, branch, billingEmail]
+      properties:
+        bankName:
+          type: string
+        accountHolder:
+          type: string
+          pattern: "^[A-Za-z\\s]+$"
+        accountNumber:
+          type: string
+          minLength: 6
+          maxLength: 34
+          pattern: "^[0-9]+$"
+        iban:
+          type: string
+          pattern: "^[A-Z]{2}\\d{2}[A-Z0-9]{11,30}$"
+        swift:
+          type: string
+          pattern: "^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$"
+        branch:
+          type: string
+          pattern: "^[A-Za-z0-9\\s.'&-]+$"
+        billingEmail:
+          type: string
+          format: email
+
+    BankAccountUpdateDto:
+      type: object
+      properties:
+        bankName:
+          type: string
+        accountHolder:
+          type: string
+          pattern: "^[A-Za-z\\s]+$"
+        accountNumber:
+          type: string
+          minLength: 6
+          maxLength: 34
+          pattern: "^[0-9]+$"
+        iban:
+          type: string
+          pattern: "^[A-Z]{2}\\d{2}[A-Z0-9]{11,30}$"
+        swift:
+          type: string
+          pattern: "^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$"
+        branch:
+          type: string
+          pattern: "^[A-Za-z0-9\\s.'&-]+$"
+        billingEmail:
+          type: string
+          format: email
+
+    InboxMessage:
+      type: object
+      required: [id, title, body, status, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        body:
+          type: string
+        status:
+          type: string
+          enum: [unread, read, archived]
+        type:
+          $ref: "#/components/schemas/NotificationType"
+        createdAt:
+          type: string
+          format: date-time
+        readAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    PaginatedInboxMessages:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/InboxMessage"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    HelpCenter:
+      type: object
+      required: [categories]
+      properties:
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/HelpCenterCategory"
+
+    HelpCenterCategory:
+      type: object
+      required: [id, title, articles]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/HelpCenterArticle"
+
+    HelpCenterArticle:
+      type: object
+      required: [id, title, body]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+
+    SupportTicketCreateDto:
+      type: object
+      required: [subject, message]
+      properties:
+        subject:
+          type: string
+        message:
+          type: string
+        email:
+          type: string
+          format: email
+          nullable: true
+        priority:
+          type: string
+          enum: [low, normal, high]
+          default: normal
+
+    SupportTicket:
+      type: object
+      required: [id, subject, message, status, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        subject:
+          type: string
+        message:
+          type: string
+        status:
+          type: string
+          enum: [open, pending, resolved, closed]
+        createdAt:
+          type: string
+          format: date-time
+
+    FeedbackCreateDto:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          nullable: true
+        page:
+          type: string
+          nullable: true
+
+    Feedback:
+      type: object
+      required: [id, message, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        message:
+          type: string
+        rating:
+          type: integer
+          nullable: true
+        page:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    LocationSearchResult:
+      type: object
+      required: [placeId, displayName, lat, lng, type]
+      properties:
+        placeId:
+          type: integer
+        displayName:
+          type: string
+        lat:
+          type: number
+          format: double
+        lng:
+          type: number
+          format: double
+        type:
+          type: string
+        address:
+          type: object
+          additionalProperties:
+            type: string
+
+    PointOfInterest:
+      type: object
+      required: [id, lat, lng, name, category]
+      properties:
+        id:
+          type: integer
+        lat:
+          type: number
+          format: double
+        lng:
+          type: number
+          format: double
+        name:
+          type: string
+        category:
+          type: string
+
+x-backend-architecture:
+  recommendedStack:
+    api: NestJS or Express/Fastify on Node.js
+    database: PostgreSQL
+    cacheAndQueues: Redis with BullMQ
+    objectStorage: S3-compatible storage for generated exports
+  conventions:
+    - Keep every tenant-scoped table keyed by business_id.
+    - Use UUID primary keys except human-readable booking and payment references.
+    - Store money as integer minor units in the database, expose decimal numbers in the API.
+    - Store all timestamps in UTC.
+    - Use camelCase DTOs at the API boundary and snake_case columns in the database.
+    - Keep catalog tables seeded and cache them aggressively.
+    - Use idempotency keys for payment, refund, export, and inventory-sale writes.
+
+x-redis-cache:
+  keys:
+    - key: "business:{businessId}:dashboard:summary"
+      ttlSeconds: 120
+      invalidatedBy: [bookings.write, payments.write, inventory.write]
+    - key: "business:{businessId}:setup-warnings"
+      ttlSeconds: 60
+      invalidatedBy: [billing.write, account.write, security.write]
+    - key: "business:{businessId}:payments:summary:{startDate}:{endDate}"
+      ttlSeconds: 120
+      invalidatedBy: [payments.write, refunds.write, inventory.sale]
+    - key: "business:{businessId}:reports:application-stats:{period}:{startDate}:{endDate}"
+      ttlSeconds: 300
+      invalidatedBy: [bookings.write, payments.write, inventory.write]
+    - key: "catalog:services:v1"
+      ttlSeconds: 86400
+      invalidatedBy: [catalog.deploy]
+    - key: "catalog:inventory:v1"
+      ttlSeconds: 86400
+      invalidatedBy: [catalog.deploy]
+    - key: "catalog:banks:v1"
+      ttlSeconds: 86400
+      invalidatedBy: [billing-provider.deploy]
+    - key: "geo:search:{query}:{limit}"
+      ttlSeconds: 86400
+      invalidatedBy: []
+    - key: "geo:nearby:{lat}:{lng}:{radiusMeters}"
+      ttlSeconds: 3600
+      invalidatedBy: []
+
+x-bullmq-queues:
+  payment-export:
+    purpose: Generate Excel, PDF, Word, Google Docs HTML, and dashboard JSON exports.
+    producerEndpoints:
+      - POST /payments/export-jobs
+    persistenceTable: export_jobs
+    retryPolicy:
+      attempts: 3
+      backoff: exponential
+  notification-dispatch:
+    purpose: Send email/SMS/in-app notifications for booking decisions, support tickets, and security events.
+    producerEndpoints:
+      - PATCH /bookings/batch/status
+      - POST /support/tickets
+    persistenceTable: notification_outbox
+    retryPolicy:
+      attempts: 5
+      backoff: exponential
+  billing-verification:
+    purpose: Verify bank/billing accounts after submission.
+    producerEndpoints:
+      - POST /billing/accounts/{billingAccountId}/submit
+    persistenceTable: billing_accounts
+    retryPolicy:
+      attempts: 5
+      backoff: exponential
+  report-rollup:
+    purpose: Optional nightly aggregation for report/dashboard read models.
+    producerEndpoints: []
+    persistenceTable: report_rollups
+    retryPolicy:
+      attempts: 2
+      backoff: fixed
+
+x-database:
+  engine: PostgreSQL
+  notes:
+    - This schema is intentionally small and normalized around tenant ownership.
+    - Use JSONB only for preference maps and address snapshots where extra address fields may vary by country.
+    - Seed catalog tables in migrations; do not let tenant data duplicate immutable catalog labels unless a custom override is needed.
+  tables:
+    users:
+      columns:
+        - id uuid primary key
+        - business_id uuid null references businesses(id)
+        - email citext unique not null
+        - password_hash text not null
+        - role text not null check in client,business,admin
+        - first_name text null
+        - last_name text null
+        - phone_number text null
+        - birth_date date null
+        - address jsonb not null default '{}'
+        - avatar_url text null
+        - mfa_enabled boolean not null default false
+        - mfa_method text null
+        - mfa_phone text null
+        - mfa_secret_encrypted text null
+        - security_preferences jsonb not null default '{}'
+        - notification_preferences jsonb not null default '{}'
+        - onboarding_completed boolean not null default false
+        - created_at timestamptz not null
+        - updated_at timestamptz not null
+      indexes:
+        - users_business_id_idx on business_id
+    businesses:
+      columns:
+        - id uuid primary key
+        - name text not null
+        - email citext not null
+        - phone_number text not null
+        - commercial_registration_number text null
+        - tax_identification_number text null
+        - business_type text null
+        - employee_count text null
+        - address jsonb not null default '{}'
+        - working_hours jsonb not null default '{}'
+        - onboarding_step text not null default 'getting-started'
+        - onboarding_completed boolean not null default false
+        - created_at timestamptz not null
+        - updated_at timestamptz not null
+      indexes:
+        - businesses_email_idx on email
+    refresh_tokens:
+      columns:
+        - id uuid primary key
+        - user_id uuid not null references users(id) on delete cascade
+        - token_hash text not null unique
+        - expires_at timestamptz not null
+        - revoked_at timestamptz null
+        - created_at timestamptz not null
+      indexes:
+        - refresh_tokens_user_id_idx on user_id
+    customers:
+      columns:
+        - id uuid primary key
+        - business_id uuid not null references businesses(id) on delete cascade
+        - first_name text not null
+        - last_name text not null
+        - email citext null
+        - phone_number text null
+        - avatar_url text null
+        - created_at timestamptz not null
+        - updated_at timestamptz not null
+      indexes:
+        - customers_business_id_idx on business_id
+        - customers_business_email_idx unique on business_id,email where email is not null
+    vehicles:
+      columns:
+        - id uuid primary key
+        - business_id uuid not null references businesses(id) on delete cascade
+        - customer_id uuid not null references customers(id) on delete cascade
+        - make text not null
+        - model text not null
+        - year text not null
+        - plate text null
+        - vin text null
+        - created_at timestamptz not null
+        - updated_at timestamptz not null
+      indexes:
+        - vehicles_business_id_idx on business_id
+        - vehicles_customer_id_idx on customer_id
+    service_categories:
+      columns:
+        - id text primary key
+        - name text not null unique
+        - icon text null
+        - sort_order integer not null default 0
+    services:
+      columns:
+        - id text primary key
+        - category_id text not null references service_categories(id)
+        - name text not null
+        - icon text null
+        - sort_order integer not null default 0
+      indexes:
+        - services_category_id_idx on category_id
+    service_config_options:
+      columns:
+        - id uuid primary key
+        - category_id text not null references service_categories(id)
+        - config_key text not null
+        - label text not null
+        - option_value text not null
+        - sort_order integer not null default 0
+      indexes:
+        - service_config_options_category_key_idx on category_id,config_key
+    business_services:
+      columns:
+        - id uuid primary key
+        - business_id uuid not null references businesses(id) on delete cascade
+        - service_id text null references services(id)
+        - category text not null
+        - name text not null
+        - price_minor integer not null
+        - currency text not null default 'USD'
+        - status text not null default 'active'
+        - created_at timestamptz not null
+        - updated_at timestamptz not null
+      indexes:
+        - business_services_business_id_idx on business_id
+        - business_services_business_service_id_idx unique on business_id,service_id where service_id is not null
+    inventory_items:
+      columns:
+        - id uuid primary key
+        - business_id uuid not null references businesses(id) on delete cascade
+        - category text not null
+        - name text not null
+        - company text null
+        - type text null
+        - specification text null
+        - capacity text null
+        - api_spec text null
+        - application text null
+        - details text null
+        - image_url text null
+        - price_minor integer not null
+        - purchase_price_minor integer null
+        - currency text not null default 'USD'
+        - delivery_time text null
+        - quantity integer not null default 0
+        - low_stock_threshold integer not null default 0
+        - status text not null default 'active'
+        - created_at timestamptz not null
+        - updated_at timestamptz not null
+      indexes:
+        - inventory_items_business_id_idx on business_id
+        - inventory_items_business_category_idx on business_id,category
+    inventory_item_services:
+      columns:
+        - inventory_item_id uuid not null references inventory_items(id) on delete cascade
+        - business_service_id uuid null references business_services(id) on delete set null
+        - service_name text not null
+        - primary key inventory_item_id,service_name
+    inventory_transactions:
+      columns:
+        - id uuid primary key
+        - business_id uuid not null references businesses(id) on delete cascade
+        - inventory_item_id uuid not null references inventory_items(id)
+        - type text not null check in purchase,sale,adjustment,return
+        - quantity integer not null
+        - unit_price_minor integer null
+        - payment_id text null references payments(id)
+        - note text null
+        - created_by uuid null references users(id)
+        - created_at timestamptz not null
+      indexes:
+        - inventory_transactions_business_id_idx on business_id
+        - inventory_transactions_item_id_idx on inventory_item_id
+    bookings:
+      columns:
+        - id text primary key
+        - business_id uuid not null references businesses(id) on delete cascade
+        - customer_id uuid not null references customers(id)
+        - vehicle_id uuid not null references vehicles(id)
+        - business_service_id uuid null references business_services(id)
+        - service_name text not null
+        - service_icon text null
+        - status text not null check in Pending,Accepted,In-Progress,Completed,Cancelled
+        - start_date date not null
+        - end_date date not null
+        - price_minor integer not null default 0
+        - currency text not null default 'USD'
+        - notes text null
+        - created_at timestamptz not null
+        - updated_at timestamptz not null
+      indexes:
+        - bookings_business_status_idx on business_id,status
+        - bookings_business_dates_idx on business_id,start_date,end_date
+        - bookings_customer_id_idx on customer_id
+    booking_service_details:
+      columns:
+        - id uuid primary key
+        - booking_id text not null references bookings(id) on delete cascade
+        - label text not null
+        - value text not null
+        - sort_order integer not null default 0
+    payments:
+      columns:
+        - id text primary key
+        - business_id uuid not null references businesses(id) on delete cascade
+        - customer_id uuid null references customers(id)
+        - booking_id text null references bookings(id)
+        - inventory_item_id uuid null references inventory_items(id)
+        - item_label text not null
+        - method text not null check in VISA,Fawry,PayPal,Cash
+        - kind text not null check in item,service,car
+        - status text not null default 'paid'
+        - paid_at date not null
+        - amount_minor integer not null
+        - currency text not null default 'USD'
+        - provider_reference text null
+        - created_at timestamptz not null
+        - updated_at timestamptz not null
+      indexes:
+        - payments_business_paid_at_idx on business_id,paid_at
+        - payments_business_method_idx on business_id,method
+        - payments_booking_id_idx on booking_id
+    payment_refunds:
+      columns:
+        - id uuid primary key
+        - payment_id text not null references payments(id)
+        - amount_minor integer not null
+        - reason text null
+        - status text not null default 'pending'
+        - created_by uuid null references users(id)
+        - created_at timestamptz not null
+      indexes:
+        - payment_refunds_payment_id_idx on payment_id
+    billing_accounts:
+      columns:
+        - id uuid primary key
+        - business_id uuid not null references businesses(id) on delete cascade
+        - bank_name text not null
+        - account_holder text not null
+        - account_number_encrypted text not null
+        - iban_encrypted text not null
+        - swift text not null
+        - branch text not null
+        - billing_email citext not null
+        - status text not null default 'draft'
+        - verification_notes text null
+        - submitted_at timestamptz null
+        - created_at timestamptz not null
+        - updated_at timestamptz not null
+      indexes:
+        - billing_accounts_business_id_idx on business_id
+    dashboard_widget_preferences:
+      columns:
+        - user_id uuid primary key references users(id) on delete cascade
+        - active_widget_ids text[] not null
+        - updated_at timestamptz not null
+    export_jobs:
+      columns:
+        - id uuid primary key
+        - business_id uuid not null references businesses(id) on delete cascade
+        - user_id uuid not null references users(id)
+        - type text not null
+        - status text not null
+        - format text not null
+        - filters jsonb not null
+        - matched_count integer null
+        - file_key text null
+        - error_message text null
+        - created_at timestamptz not null
+        - completed_at timestamptz null
+        - expires_at timestamptz null
+      indexes:
+        - export_jobs_business_user_idx on business_id,user_id
+        - export_jobs_status_idx on status
+    notification_outbox:
+      columns:
+        - id uuid primary key
+        - business_id uuid null references businesses(id) on delete cascade
+        - user_id uuid null references users(id) on delete cascade
+        - channel text not null
+        - type text not null
+        - payload jsonb not null
+        - status text not null default 'pending'
+        - attempts integer not null default 0
+        - next_attempt_at timestamptz null
+        - created_at timestamptz not null
+        - sent_at timestamptz null
+      indexes:
+        - notification_outbox_status_next_attempt_idx on status,next_attempt_at
+    inbox_messages:
+      columns:
+        - id uuid primary key
+        - business_id uuid null references businesses(id) on delete cascade
+        - user_id uuid not null references users(id) on delete cascade
+        - title text not null
+        - body text not null
+        - type text not null
+        - status text not null default 'unread'
+        - created_at timestamptz not null
+        - read_at timestamptz null
+      indexes:
+        - inbox_messages_user_status_idx on user_id,status
+    support_tickets:
+      columns:
+        - id uuid primary key
+        - business_id uuid null references businesses(id) on delete set null
+        - user_id uuid null references users(id) on delete set null
+        - subject text not null
+        - message text not null
+        - email citext null
+        - priority text not null default 'normal'
+        - status text not null default 'open'
+        - created_at timestamptz not null
+        - updated_at timestamptz not null
+    feedback:
+      columns:
+        - id uuid primary key
+        - business_id uuid null references businesses(id) on delete set null
+        - user_id uuid null references users(id) on delete set null
+        - message text not null
+        - rating integer null
+        - page text null
+        - created_at timestamptz not null
+    report_rollups:
+      columns:
+        - id uuid primary key
+        - business_id uuid not null references businesses(id) on delete cascade
+        - period text not null
+        - bucket_start date not null
+        - bucket_end date not null
+        - metrics jsonb not null
+        - created_at timestamptz not null
+      indexes:
+        - report_rollups_business_period_bucket_idx unique on business_id,period,bucket_start,bucket_end

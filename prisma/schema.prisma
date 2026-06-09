@@ -1,65 +1,433 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-  
+}
+
+enum UserRole {
+  client
+  business
+  admin
+}
+
+enum TwoFactorMethod {
+  sms
+  authenticator
+}
+
+enum BusinessType {
+  general_repair
+  specialized
+  body_paint
+  quick_service
+}
+
+enum EmployeeCount {
+  small
+  medium
+  large
+}
+
+enum BookingStatus {
+  In_Progress
+  Completed
+  Pending
+  Cancelled
+  Accepted
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  email String @unique
-
-  firstName   String?
-  lastName    String?
-  phoneNumber Int
-
-  streetAddress String?
-  country       String?
-  city          String?
-
-  // Relationships
-  businessOwner BusinessOwner?
-  client        Client?
+  id                  Int              @id @default(autoincrement())
+  email               String           @unique
+  passwordHash        String
+  role                UserRole
+  firstName           String?
+  lastName            String?
+  phoneNumber         String?
+  birthDate           DateTime?        @db.Date
+  address             Json             @default("{}")
+  avatarUrl           String?
+  mfaPhone            String?
+  securityPreferences Json             @default("{}")
+  notificationPreferences Json         @default("{}")
+  businessId          Int?
+  business            Business?        @relation("BusinessUsers", fields: [businessId], references: [id])
+  twoFactorEnabled    Boolean          @default(false)
+  twoFactorMethod     TwoFactorMethod?
+  onboardingCompleted Boolean          @default(false)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  refreshTokens       RefreshToken[]
+  widgetPreferences   DashboardWidgetPreference?
+  inboxMessages       InboxMessage[]
+  exportJobs          ExportJob[]
+  supportTickets      SupportTicket[]
+  feedback            Feedback[]
 }
 
-model Client {
-  id     Int    @id @default(autoincrement())
-  userId Int    @unique
-  user   User   @relation(fields: [userId], references: [id])
-  hash   String
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
-model BusinessOwner {
-  id     Int  @id @default(autoincrement())
-  userId Int  @unique
-  user   User @relation(fields: [userId], references: [id])
+model DashboardWidgetPreference {
+  userId          Int      @id
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activeWidgetIds String[]
+  updatedAt       DateTime @updatedAt
 }
 
 model Business {
-  id        Int      @id @default(autoincrement())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now())
-
-  email String @unique
-  hash  String
-
+  id                          Int            @id @default(autoincrement())
   name                        String
-  phoneNumber                 Int
-  country                     String
-  city                        String
-  // السجل التجاري
-  commercialRegistraionNumber Int
-  // بطاقة ضريبية
-  taxIdentificationNumber     Int
+  email                       String         @unique
+  phoneNumber                 String
+  commercialRegistraionNumber BigInt
+  taxIdentificationNumber     BigInt
+  businessType                BusinessType?
+  employeeCount               EmployeeCount?
+  country                     String?
+  streetAddress               String?
+  city                        String?
+  state                       String?
+  zipCode                     String?
+  workingHoursOpen            String?
+  workingHoursClose           String?
+  onboardingCompleted         Boolean        @default(false)
+  createdAt                   DateTime       @default(now())
+  updatedAt                   DateTime       @updatedAt
+
+  users             User[]             @relation("BusinessUsers")
+  bankDetails       BankDetails?
+  businessServices  BusinessService[]
+  businessInventory BusinessInventory[]
+  inventoryItems    InventoryItem[]
+  inventoryTxns     InventoryTransaction[]
+  payments          Payment[]
+  billingAccounts   BillingAccount[]
+  exportJobs        ExportJob[]
+  inboxMessages     InboxMessage[]
+  supportTickets    SupportTicket[]
+  feedback          Feedback[]
+  customers         Customer[]
+  bookings          Booking[]
+}
+
+model BankDetails {
+  id            Int      @id @default(autoincrement())
+  businessId    Int      @unique
+  business      Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  bankName      String
+  accountHolder String
+  iban          String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model ServiceCategory {
+  id            String                @id
+  name          String
+  services      Service[]
+  configOptions ServiceConfigOption[]
+  inventory     BusinessInventory[]
+}
+
+model Service {
+  id               String            @id
+  categoryId       String
+  category         ServiceCategory   @relation(fields: [categoryId], references: [id])
+  name             String
+  icon             String?
+  businessServices BusinessService[]
+  bookings         Booking[]
+}
+
+model ServiceConfigOption {
+  id         Int             @id @default(autoincrement())
+  categoryId String
+  category   ServiceCategory @relation(fields: [categoryId], references: [id])
+  configKey  String
+  value      String
+
+  @@unique([categoryId, configKey, value])
+}
+
+model BusinessService {
+  id         Int       @id @default(autoincrement())
+  businessId Int
+  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  serviceId  String?
+  service    Service?  @relation(fields: [serviceId], references: [id])
+  category   String?
+  name       String?
+  price      Decimal?  @db.Decimal(10, 2)
+  currency   String    @default("USD")
+  status     String    @default("active")
+  priceMin   Decimal?  @db.Decimal(10, 2)
+  priceMax   Decimal?  @db.Decimal(10, 2)
+  enabled    Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([businessId, serviceId])
+}
+
+model BusinessInventory {
+  id         Int             @id @default(autoincrement())
+  businessId Int
+  business   Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   ServiceCategory @relation(fields: [categoryId], references: [id])
+  configKey  String
+  value      String
+}
+
+model Customer {
+  id          Int      @id @default(autoincrement())
+  businessId  Int
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  firstName   String
+  lastName    String
+  email       String?
+  phoneNumber String?
+  avatarUrl   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  cars        Car[]
+  bookings    Booking[]
+}
+
+model Car {
+  id         Int      @id @default(autoincrement())
+  customerId Int
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  make       String
+  model      String
+  year       String
+  plate      String?
+  vin        String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  bookings   Booking[]
+}
+
+model Booking {
+  id             String                 @id
+  businessId     Int
+  business       Business               @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId     Int
+  customer       Customer               @relation(fields: [customerId], references: [id])
+  carId          Int
+  car            Car                    @relation(fields: [carId], references: [id])
+  serviceId      String
+  service        Service                @relation(fields: [serviceId], references: [id])
+  status         BookingStatus          @default(Pending)
+  startDate      DateTime               @db.Date
+  endDate        DateTime               @db.Date
+  price          Decimal                @db.Decimal(10, 2)
+  serviceDetails BookingServiceDetail[]
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  @@index([businessId, status])
+  @@index([businessId, startDate])
+}
+
+model BookingServiceDetail {
+  id        Int     @id @default(autoincrement())
+  bookingId String
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  label     String
+  value     String
+}
+
+model InventoryItem {
+  id                String    @id @default(uuid())
+  businessId        Int
+  business          Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  category          String
+  name              String
+  company           String?
+  type              String?
+  specification     String?
+  capacity          String?
+  apiSpec           String?
+  application       String?
+  details           String?
+  usedInServices    String[]  @default([])
+  imageUrl          String?
+  price             Decimal   @db.Decimal(10, 2)
+  purchasePrice     Decimal?  @db.Decimal(10, 2)
+  currency          String    @default("USD")
+  deliveryTime      String?
+  quantity          Int       @default(0)
+  lowStockThreshold Int       @default(0)
+  status            String    @default("active")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([businessId])
+  @@index([businessId, category])
+}
+
+model InventoryTransaction {
+  id              String    @id @default(uuid())
+  businessId      Int
+  business        Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  inventoryItemId String
+  type            String
+  quantity        Int
+  unitPrice       Decimal?  @db.Decimal(10, 2)
+  paymentId       String?
+  note            String?
+  createdBy       Int?
+  createdAt       DateTime  @default(now())
+
+  @@index([businessId])
+  @@index([inventoryItemId])
+}
+
+model Payment {
+  id              String    @id
+  businessId      Int
+  business        Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId      Int?
+  bookingId       String?
+  inventoryItemId String?
+  item            String
+  method          String
+  kind            String
+  status          String    @default("paid")
+  date            DateTime  @db.Date
+  amount          Decimal   @db.Decimal(10, 2)
+  currency        String    @default("USD")
+  providerRef     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  refunds         PaymentRefund[]
+
+  @@index([businessId, date])
+  @@index([businessId, method])
+}
+
+model PaymentRefund {
+  id        String   @id @default(uuid())
+  paymentId String
+  payment   Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  amount    Decimal  @db.Decimal(10, 2)
+  reason    String?
+  status    String   @default("succeeded")
+  createdBy Int?
+  createdAt DateTime @default(now())
+
+  @@index([paymentId])
+}
+
+model ExportJob {
+  id           String    @id @default(uuid())
+  businessId   Int
+  business     Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  userId       Int
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type         String
+  status       String
+  format       String
+  filters      Json
+  matchedCount Int?
+  fileKey      String?
+  errorMessage String?
+  createdAt    DateTime  @default(now())
+  completedAt  DateTime?
+  expiresAt    DateTime?
+
+  @@index([businessId, userId])
+  @@index([status])
+}
+
+model BillingAccount {
+  id                String    @id @default(uuid())
+  businessId        Int
+  business          Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  bankName          String
+  accountHolder     String
+  accountNumber     String
+  iban              String
+  swift             String
+  branch            String
+  billingEmail      String
+  status            String    @default("draft")
+  verificationNotes String?
+  submittedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([businessId])
+}
+
+model NotificationOutbox {
+  id            String    @id @default(uuid())
+  businessId    Int?
+  userId        Int?
+  channel       String
+  type          String
+  payload       Json
+  status        String    @default("pending")
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime?
+  createdAt     DateTime  @default(now())
+  sentAt         DateTime?
+
+  @@index([status, nextAttemptAt])
+}
+
+model InboxMessage {
+  id         String    @id @default(uuid())
+  businessId Int?
+  business   Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  userId     Int
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title      String
+  body       String
+  type       String
+  status     String    @default("unread")
+  createdAt  DateTime  @default(now())
+  readAt     DateTime?
+
+  @@index([userId, status])
+}
+
+model SupportTicket {
+  id         String    @id @default(uuid())
+  businessId Int?
+  business   Business? @relation(fields: [businessId], references: [id], onDelete: SetNull)
+  userId     Int?
+  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  subject    String
+  message    String
+  email      String?
+  priority   String    @default("normal")
+  status     String    @default("open")
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Feedback {
+  id         String    @id @default(uuid())
+  businessId Int?
+  business   Business? @relation(fields: [businessId], references: [id], onDelete: SetNull)
+  userId     Int?
+  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  message    String
+  rating     Int?
+  page       String?
+  createdAt  DateTime  @default(now())
 }

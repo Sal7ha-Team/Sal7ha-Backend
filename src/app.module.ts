@@ -1,23 +1,56 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
-import { ClientAuthModule } from './client/auth/client.auth.module';
-import { ClientModule } from './client/get/client.module';
+import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
-import { BusinessAuthModule } from './shop/auth/business.auth.module';
-import { BusinessModule } from './shop/get/business.module';
+import { CacheModule } from './common/cache/cache.module';
+import { QueueModule } from './common/queues/queue.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { AccountModule } from './modules/account/account.module';
+import { OnboardingModule } from './modules/onboarding/onboarding.module';
+import { BookingsModule } from './modules/bookings/bookings.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { ServicesModule } from './modules/services/services.module';
+import { BusinessModule } from './modules/business/business.module';
+import { SystemModule } from './modules/system/system.module';
+import { CustomersModule } from './modules/customers/customers.module';
+import { VehiclesModule } from './modules/vehicles/vehicles.module';
+import { InventoryModule } from './modules/inventory/inventory.module';
+import { PaymentsModule } from './modules/payments/payments.module';
+import { ReportsModule } from './modules/reports/reports.module';
+import { BillingModule } from './modules/billing/billing.module';
+import { InboxModule } from './modules/inbox/inbox.module';
+import { SupportModule } from './modules/support/support.module';
+import { LocationsModule } from './modules/locations/locations.module';
+import { JwtGuard } from './common/guards/jwt.guard';
+import { RolesGuard } from './common/guards/roles.guard';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    ClientAuthModule,
-    BusinessAuthModule,
-    BusinessModule  ,
-    ClientModule,
     PrismaModule,
+    CacheModule,
+    QueueModule,
+    SystemModule,
+    AuthModule,
+    AccountModule,
+    OnboardingModule,
+    BookingsModule,
+    DashboardModule,
+    ServicesModule,
+    BusinessModule,
+    CustomersModule,
+    VehiclesModule,
+    InventoryModule,
+    PaymentsModule,
+    ReportsModule,
+    BillingModule,
+    InboxModule,
+    SupportModule,
+    LocationsModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    { provide: APP_GUARD, useClass: JwtGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+  ],
 })
 export class AppModule {}
