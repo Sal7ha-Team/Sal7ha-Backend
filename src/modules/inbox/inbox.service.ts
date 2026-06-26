@@ -44,6 +44,7 @@ export class InboxService {
       id: row.id,
       title: row.title,
       body: row.body,
+      data: row.data,
       status: row.status,
       type: row.type,
       createdAt: row.createdAt,

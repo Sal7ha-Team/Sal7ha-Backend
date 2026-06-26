@@ -21,7 +21,6 @@ export class OnboardingController {
   }
 
   @Put('owner-information')
-  @Post('owner-information')
   ownerInformation(
     @CurrentUser() user: JwtUser,
     @Body() dto: OwnerInformationDto,
@@ -29,13 +28,28 @@ export class OnboardingController {
     return this.onboarding.saveOwnerInformation(user.sub, user.businessId, dto);
   }
 
+  @Post('owner-information')
+  createOwnerInformation(
+    @CurrentUser() user: JwtUser,
+    @Body() dto: OwnerInformationDto,
+  ) {
+    return this.ownerInformation(user, dto);
+  }
+
   @Put('business-information')
-  @Post('business-information')
   businessInformation(
     @CurrentUser() user: JwtUser,
     @Body() dto: BusinessInformationDto,
   ) {
     return this.onboarding.saveBusinessInformation(user.businessId, dto);
+  }
+
+  @Post('business-information')
+  createBusinessInformation(
+    @CurrentUser() user: JwtUser,
+    @Body() dto: BusinessInformationDto,
+  ) {
+    return this.businessInformation(user, dto);
   }
 
   @Post('build-business')
@@ -44,15 +58,23 @@ export class OnboardingController {
   }
 
   @Put('bank-details')
-  @Post('bank-details')
   bankDetails(@CurrentUser() user: JwtUser, @Body() dto: BankDetailsDto) {
     return this.onboarding.saveBankDetails(user.businessId, dto);
   }
 
+  @Post('bank-details')
+  createBankDetails(@CurrentUser() user: JwtUser, @Body() dto: BankDetailsDto) {
+    return this.bankDetails(user, dto);
+  }
+
   @Put('two-factor-auth')
-  @Post('two-factor-auth')
   twoFactor(@CurrentUser() user: JwtUser, @Body() dto: TwoFactorAuthDto) {
     return this.onboarding.saveTwoFactor(user.sub, user.businessId, dto);
+  }
+
+  @Post('two-factor-auth')
+  createTwoFactor(@CurrentUser() user: JwtUser, @Body() dto: TwoFactorAuthDto) {
+    return this.twoFactor(user, dto);
   }
 
   @Post('submit')

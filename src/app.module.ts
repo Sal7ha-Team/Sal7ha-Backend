@@ -21,6 +21,8 @@ import { BillingModule } from './modules/billing/billing.module';
 import { InboxModule } from './modules/inbox/inbox.module';
 import { SupportModule } from './modules/support/support.module';
 import { LocationsModule } from './modules/locations/locations.module';
+import { MobileModule } from './modules/mobile/mobile.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { JwtGuard } from './common/guards/jwt.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -29,6 +31,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     CacheModule,
+    NotificationsModule,
     QueueModule,
     SystemModule,
     AuthModule,
@@ -47,6 +50,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     InboxModule,
     SupportModule,
     LocationsModule,
+    MobileModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtGuard },

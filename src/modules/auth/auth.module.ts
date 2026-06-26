@@ -15,7 +15,9 @@ import { AuthService } from './auth.service';
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('JWT_SECRET') ?? 'dev-secret',
         signOptions: {
-          expiresIn: config.get<number>('JWT_ACCESS_TOKEN_TTL_SECONDS') ?? 900,
+          expiresIn: Number(
+            config.get<string>('JWT_ACCESS_TOKEN_TTL_SECONDS') ?? 900,
+          ),
         },
       }),
     }),

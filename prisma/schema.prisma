@@ -60,6 +60,7 @@ model User {
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
   refreshTokens       RefreshToken[]
+  notificationDevices NotificationDevice[]
   widgetPreferences   DashboardWidgetPreference?
   inboxMessages       InboxMessage[]
   exportJobs          ExportJob[]
@@ -389,6 +390,23 @@ model NotificationOutbox {
   @@index([status, nextAttemptAt])
 }
 
+model NotificationDevice {
+  id         String   @id @default(uuid())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token      String   @unique
+  platform   String
+  client     String   @default("mobile")
+  deviceId   String?
+  enabled    Boolean  @default(true)
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId, enabled])
+  @@index([platform])
+}
+
 model InboxMessage {
   id         String    @id @default(uuid())
   businessId Int?
@@ -397,6 +415,7 @@ model InboxMessage {
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   title      String
   body       String
+  data       Json      @default("{}")
   type       String
   status     String    @default("unread")
   createdAt  DateTime  @default(now())

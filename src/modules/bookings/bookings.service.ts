@@ -7,9 +7,10 @@ import { Prisma, BookingStatus } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { RedisCacheService } from 'src/common/cache/redis-cache.service';
 import { cacheKeys } from 'src/common/cache/cache-keys';
-import { AppQueueService } from 'src/common/queues/app-queue.service';
+import { NotificationsService } from 'src/modules/notifications/notifications.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { formatDate, parseDate } from 'src/common/utils/date.util';
+import { pagination, paginationMeta } from 'src/common/utils/pagination.util';
 import {
   ApiBookingStatus,
   BookingQueryDto,
@@ -34,7 +35,7 @@ type BookingRecord = Prisma.BookingGetPayload<{
 export class BookingsService {
   constructor(
     private readonly cache: RedisCacheService,
-    private readonly queues: AppQueueService,
+    private readonly notifications: NotificationsService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -111,16 +112,15 @@ export class BookingsService {
       }
     })();
 
-    const page = q.page ?? 1;
-    const limit = q.limit ?? 10;
+    const page = pagination(q);
 
     const [total, rows] = await this.prisma.$transaction([
       this.prisma.booking.count({ where }),
       this.prisma.booking.findMany({
         where,
         orderBy,
-        skip: (page - 1) * limit,
-        take: limit,
+        skip: page.skip,
+        take: page.take,
         include: {
           service: true,
           customer: true,
@@ -132,12 +132,7 @@ export class BookingsService {
 
     return {
       data: rows.map((r) => this.serialize(r)),
-      pagination: {
-        total,
-        page,
-        limit,
-        pages: Math.ceil(total / limit),
-      },
+      pagination: paginationMeta(total, page.page, page.limit),
     };
   }
 
@@ -208,6 +203,7 @@ export class BookingsService {
       },
     });
     await this.invalidateReadModels(bid);
+    await this.notifications.notifyBusinessOwnersOfBookingCreated(booking.id);
     return this.serialize(booking);
   }
 
@@ -262,6 +258,13 @@ export class BookingsService {
       },
     });
     await this.invalidateReadModels(bid);
+    if (dto.status && updated.status !== existing.status) {
+      await this.notifications.notifyBookingStatusChanged({
+        businessId: bid,
+        bookingIds: [id],
+        status: updated.status,
+      });
+    }
     return this.serialize(updated);
   }
 
@@ -280,14 +283,7 @@ export class BookingsService {
     id: string,
     status: ApiBookingStatus,
   ) {
-    const updated = await this.update(businessId, id, { status });
-    const bid = this.requireBusiness(businessId);
-    await this.queues.enqueueBookingStatusNotifications({
-      businessId: bid,
-      bookingIds: [id],
-      status: this.toPrismaStatus(status),
-    });
-    return updated;
+    return this.update(businessId, id, { status });
   }
 
   async batchStatus(
@@ -300,11 +296,13 @@ export class BookingsService {
       data: { status: this.toPrismaStatus(dto.status) },
     });
     await this.invalidateReadModels(bid);
-    await this.queues.enqueueBookingStatusNotifications({
-      businessId: bid,
-      bookingIds: dto.ids,
-      status: this.toPrismaStatus(dto.status),
-    });
+    if (result.count > 0) {
+      await this.notifications.notifyBookingStatusChanged({
+        businessId: bid,
+        bookingIds: dto.ids,
+        status: this.toPrismaStatus(dto.status),
+      });
+    }
 
     return {
       requested: dto.ids.length,

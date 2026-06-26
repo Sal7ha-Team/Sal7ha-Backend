@@ -18,6 +18,48 @@ export class ServicesService {
     );
   }
 
+  async categories() {
+    const categories = await this.prisma.serviceCategory.findMany({
+      orderBy: { name: 'asc' },
+    });
+    return categories.map((category) => ({
+      id: category.id,
+      name: category.name,
+      nameAr: null,
+      iconKey: category.id,
+    }));
+  }
+
+  async services(query: { q?: string; categoryId?: string } = {}) {
+    const rows = await this.prisma.service.findMany({
+      where: {
+        categoryId: query.categoryId,
+        name: query.q ? { contains: query.q, mode: 'insensitive' } : undefined,
+      },
+      include: { category: true },
+      orderBy: { name: 'asc' },
+    });
+    return rows.map((row) => this.serializeMobileService(row));
+  }
+
+  async service(id: string) {
+    const row = await this.prisma.service.findUnique({
+      where: { id },
+      include: { category: true },
+    });
+    if (!row) return null;
+    return this.serializeMobileService(row);
+  }
+
+  oilBrands() {
+    return [
+      { id: 'mobil-1', name: 'Mobil 1', logo: null },
+      { id: 'shell-helix', name: 'Shell Helix', logo: null },
+      { id: 'castrol-edge', name: 'Castrol EDGE', logo: null },
+      { id: 'total-quartz', name: 'Total Quartz', logo: null },
+    ];
+  }
+
   private async getCatalog() {
     const [categories, services, options] = await Promise.all([
       this.prisma.serviceCategory.findMany({ orderBy: { name: 'asc' } }),
@@ -50,5 +92,31 @@ export class ServicesService {
         })),
       };
     });
+  }
+
+  private serializeMobileService(row: {
+    id: string;
+    name: string;
+    icon: string | null;
+    category: { id: string; name: string };
+  }) {
+    return {
+      id: row.id,
+      category: {
+        id: row.category.id,
+        name: row.category.name,
+        nameAr: null,
+        iconKey: row.icon,
+      },
+      name: row.name,
+      nameAr: null,
+      description: null,
+      priceRange: {
+        min: null,
+        max: null,
+        currency: 'EGP',
+      },
+      durationMinutes: null,
+    };
   }
 }

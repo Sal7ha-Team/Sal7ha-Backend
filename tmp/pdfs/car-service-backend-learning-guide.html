@@ -1,0 +1,699 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Car Service Backend Learning Guide</title>
+    <style>
+      @page {
+        size: A4;
+        margin: 18mm 16mm;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: #18202a;
+        background: #ffffff;
+        font-family:
+          "Segoe UI",
+          Arial,
+          sans-serif;
+        font-size: 10.5pt;
+        line-height: 1.45;
+      }
+
+      .page {
+        break-after: page;
+      }
+
+      .page:last-child {
+        break-after: auto;
+      }
+
+      .cover {
+        min-height: 250mm;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+
+      .eyebrow {
+        color: #5b6b7c;
+        font-size: 9pt;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+        color: #111827;
+      }
+
+      h1 {
+        max-width: 520px;
+        margin-top: 16mm;
+        font-size: 31pt;
+        line-height: 1.05;
+        letter-spacing: 0;
+      }
+
+      h2 {
+        margin: 0 0 5mm;
+        padding-bottom: 2.5mm;
+        border-bottom: 1px solid #d8dee7;
+        font-size: 17pt;
+      }
+
+      h3 {
+        margin: 5mm 0 2mm;
+        font-size: 11.5pt;
+      }
+
+      p {
+        margin: 0 0 3mm;
+      }
+
+      .subtitle {
+        max-width: 560px;
+        margin-top: 7mm;
+        color: #405063;
+        font-size: 12.5pt;
+      }
+
+      .meta-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 4mm;
+        margin-top: 16mm;
+      }
+
+      .meta-box,
+      .callout,
+      .track,
+      .checklist,
+      .module-box {
+        border: 1px solid #d8dee7;
+        border-radius: 7px;
+        background: #f9fbfd;
+      }
+
+      .meta-box {
+        min-height: 30mm;
+        padding: 5mm;
+      }
+
+      .meta-box strong {
+        display: block;
+        margin-bottom: 1.5mm;
+        color: #1f2937;
+        font-size: 9pt;
+      }
+
+      .meta-box span {
+        color: #4b5563;
+        font-size: 10pt;
+      }
+
+      .toc {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 3mm 8mm;
+        margin-top: 8mm;
+      }
+
+      .toc div {
+        padding: 2.5mm 0;
+        border-bottom: 1px solid #e6ebf1;
+        color: #273446;
+      }
+
+      .section {
+        margin-bottom: 7mm;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 3mm 0 6mm;
+        table-layout: fixed;
+      }
+
+      th {
+        background: #eef3f8;
+        color: #243246;
+        font-size: 8.8pt;
+        text-align: left;
+        text-transform: uppercase;
+      }
+
+      th,
+      td {
+        border: 1px solid #dbe2ea;
+        padding: 2.6mm 2.8mm;
+        vertical-align: top;
+      }
+
+      td {
+        color: #2f3b4a;
+      }
+
+      .lib {
+        color: #111827;
+        font-family: Consolas, "Courier New", monospace;
+        font-weight: 700;
+        font-size: 9.5pt;
+      }
+
+      .tag {
+        display: inline-block;
+        margin: 0 1.5mm 1.5mm 0;
+        padding: 1mm 2.2mm;
+        border-radius: 999px;
+        background: #e8f2ff;
+        color: #235078;
+        font-size: 8.5pt;
+        font-weight: 700;
+      }
+
+      .tag.alt {
+        background: #edf7ef;
+        color: #23643c;
+      }
+
+      .tag.warn {
+        background: #fff3db;
+        color: #7a4b00;
+      }
+
+      .callout {
+        padding: 4mm;
+        margin: 4mm 0 6mm;
+        background: #fffdf7;
+      }
+
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4mm;
+      }
+
+      .track {
+        padding: 4mm;
+        break-inside: avoid;
+      }
+
+      .track h3 {
+        margin-top: 0;
+      }
+
+      ul,
+      ol {
+        margin: 2mm 0 0 5mm;
+        padding: 0;
+      }
+
+      li {
+        margin-bottom: 1.8mm;
+      }
+
+      .checklist {
+        padding: 4mm;
+        background: #ffffff;
+      }
+
+      .checklist li {
+        list-style: none;
+        margin-left: 0;
+      }
+
+      .checklist li::before {
+        content: "□";
+        margin-right: 2mm;
+        color: #6b7280;
+      }
+
+      .module-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4mm;
+      }
+
+      .module-box {
+        padding: 4mm;
+        background: #ffffff;
+        break-inside: avoid;
+      }
+
+      code {
+        color: #1f2937;
+        font-family: Consolas, "Courier New", monospace;
+        font-size: 9.4pt;
+      }
+
+      .footer-note {
+        color: #5b6675;
+        font-size: 9pt;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="page cover">
+      <div>
+        <div class="eyebrow">Car Service Backend</div>
+        <h1>Learning Guide for the Project Stack</h1>
+        <p class="subtitle">
+          A practical roadmap of the libraries, infrastructure, and backend
+          topics needed to understand, maintain, and extend this NestJS car
+          service platform.
+        </p>
+
+        <div class="meta-grid">
+          <div class="meta-box">
+            <strong>Backend Framework</strong>
+            <span>NestJS 11 with TypeScript, modules, controllers, services, guards, and DTO validation.</span>
+          </div>
+          <div class="meta-box">
+            <strong>Data Layer</strong>
+            <span>PostgreSQL, Prisma 7, migrations, generated client, and relational schema design.</span>
+          </div>
+          <div class="meta-box">
+            <strong>Async Work</strong>
+            <span>Redis, BullMQ, notification outbox, background jobs, retries, and fallback behavior.</span>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h2>Contents</h2>
+        <div class="toc">
+          <div>1. Project stack at a glance</div>
+          <div>2. Core backend libraries</div>
+          <div>3. Notifications, FCM, and queues</div>
+          <div>4. Database, auth, and validation</div>
+          <div>5. API, testing, and deployment topics</div>
+          <div>6. Suggested learning order</div>
+        </div>
+        <p class="footer-note">
+          Generated for this repository on June 26, 2026.
+        </p>
+      </div>
+    </section>
+
+    <section class="page">
+      <h2>Project Stack At A Glance</h2>
+
+      <div class="section">
+        <p>
+          This backend is a modular NestJS API. The main app imports modules for
+          auth, account, onboarding, bookings, dashboard, services, business,
+          customers, vehicles, inventory, payments, reports, billing, inbox,
+          support, locations, mobile, notifications, cache, queues, and Prisma.
+        </p>
+        <div>
+          <span class="tag">NestJS</span>
+          <span class="tag">TypeScript</span>
+          <span class="tag">PostgreSQL</span>
+          <span class="tag">Prisma</span>
+          <span class="tag">Redis</span>
+          <span class="tag">BullMQ</span>
+          <span class="tag">JWT</span>
+          <span class="tag">FCM</span>
+          <span class="tag">Docker Compose</span>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 25%">Area</th>
+            <th style="width: 32%">What To Learn</th>
+            <th>Why It Matters Here</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Backend architecture</td>
+            <td>Nest modules, dependency injection, controllers, services, providers, guards.</td>
+            <td>Every feature is split into modules such as bookings, mobile, notifications, and account.</td>
+          </tr>
+          <tr>
+            <td>Persistence</td>
+            <td>Prisma schema, migrations, generated client, transactions, relational modeling.</td>
+            <td>Users, businesses, bookings, inbox messages, device tokens, payments, and inventory live in PostgreSQL.</td>
+          </tr>
+          <tr>
+            <td>Notifications</td>
+            <td>FCM tokens, service accounts, push payloads, in-app inbox, notification preferences.</td>
+            <td>Booking creation, status changes, and cancellations create inbox rows and optionally push to devices.</td>
+          </tr>
+          <tr>
+            <td>Queues and cache</td>
+            <td>Redis, BullMQ queues, retries, backoff, idempotency, cache invalidation.</td>
+            <td>The backend already has queue/cache infrastructure and Redis in Docker Compose.</td>
+          </tr>
+          <tr>
+            <td>Security</td>
+            <td>JWT, refresh tokens, Passport strategies, role guards, argon2 password hashing.</td>
+            <td>The app has separate business, client, and admin roles with protected routes.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout">
+        <strong>High value mental model:</strong>
+        a request enters a controller, validation shapes the DTO, a service runs
+        business logic, Prisma persists state, cache/queues handle side effects,
+        and guards keep users inside the routes they are allowed to use.
+      </div>
+    </section>
+
+    <section class="page">
+      <h2>Core Backend Libraries</h2>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 25%">Library</th>
+            <th style="width: 28%">Learn These Topics</th>
+            <th>Project Use</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="lib">@nestjs/common</span><br /><span class="lib">@nestjs/core</span></td>
+            <td>Modules, providers, decorators, exceptions, pipes, guards, interceptors.</td>
+            <td>The foundation of every API feature and dependency injection path.</td>
+          </tr>
+          <tr>
+            <td><span class="lib">@nestjs/config</span><br /><span class="lib">dotenv</span></td>
+            <td>Environment variables, config loading, feature flags, secret handling.</td>
+            <td>Used for database, Redis, JWT, queue flags, and Firebase credentials.</td>
+          </tr>
+          <tr>
+            <td><span class="lib">@prisma/client</span><br /><span class="lib">prisma</span></td>
+            <td>Schema models, migrations, relations, generated types, query filters.</td>
+            <td>Main ORM for bookings, users, businesses, inbox, notification devices, and more.</td>
+          </tr>
+          <tr>
+            <td><span class="lib">@prisma/adapter-pg</span><br /><span class="lib">pg</span></td>
+            <td>PostgreSQL connections, pools, adapters, connection strings.</td>
+            <td>Prisma connects to PostgreSQL through the PG adapter and a connection pool.</td>
+          </tr>
+          <tr>
+            <td><span class="lib">class-validator</span><br /><span class="lib">class-transformer</span></td>
+            <td>DTO validation, type conversion, optional fields, enums, arrays.</td>
+            <td>Global validation pipe validates request bodies and query params.</td>
+          </tr>
+          <tr>
+            <td><span class="lib">@nestjs/jwt</span><br /><span class="lib">passport-jwt</span></td>
+            <td>Access tokens, refresh tokens, JWT claims, auth guards.</td>
+            <td>Protects most routes and carries user id, email, role, and business id.</td>
+          </tr>
+          <tr>
+            <td><span class="lib">argon2</span></td>
+            <td>Password hashing, verification, salts, secure login design.</td>
+            <td>Business and client passwords are hashed before storage.</td>
+          </tr>
+          <tr>
+            <td><span class="lib">rxjs</span><br /><span class="lib">reflect-metadata</span></td>
+            <td>Nest internals, decorators, metadata, observables basics.</td>
+            <td>Required by NestJS and useful when building more advanced providers.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Developer Tooling</h3>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 25%">Tool</th>
+            <th style="width: 28%">Learn These Topics</th>
+            <th>Project Use</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="lib">typescript</span></td>
+            <td>Types, unions, generics, strict null checks, module resolution.</td>
+            <td>All backend code is TypeScript targeting modern Node.</td>
+          </tr>
+          <tr>
+            <td><span class="lib">jest</span><br /><span class="lib">ts-jest</span><br /><span class="lib">supertest</span></td>
+            <td>Unit tests, integration tests, HTTP e2e tests, mocks.</td>
+            <td>The project has test wiring and is ready for focused backend specs.</td>
+          </tr>
+          <tr>
+            <td><span class="lib">eslint</span><br /><span class="lib">prettier</span></td>
+            <td>Lint rules, auto formatting, consistent code style.</td>
+            <td>Used by the lint and format scripts.</td>
+          </tr>
+          <tr>
+            <td><span class="lib">Docker Compose</span></td>
+            <td>Local services, volumes, health checks, ports.</td>
+            <td>Runs PostgreSQL 16 and Redis 7 for local development.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="page">
+      <h2>Notifications, FCM, Redis, And BullMQ</h2>
+
+      <div class="grid-2">
+        <div class="track">
+          <h3>Firebase Cloud Messaging</h3>
+          <ul>
+            <li>Learn FCM registration tokens and how each device gets one.</li>
+            <li>Learn service account credentials and Firebase HTTP v1 API.</li>
+            <li>Learn notification vs data payloads and deep links.</li>
+            <li>Learn token cleanup for expired or unregistered devices.</li>
+            <li>Learn web push service workers and VAPID keys for browsers.</li>
+          </ul>
+        </div>
+        <div class="track">
+          <h3>Project Notification Flow</h3>
+          <ul>
+            <li>Register token with <code>POST /notifications/devices</code>.</li>
+            <li>Store token in <code>NotificationDevice</code>.</li>
+            <li>Create <code>InboxMessage</code> for every important event.</li>
+            <li>Send push when Firebase credentials are configured.</li>
+            <li>Disable invalid tokens after failed FCM delivery.</li>
+          </ul>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 25%">Need</th>
+            <th style="width: 31%">Backend Library Or Topic</th>
+            <th>Mobile Or Website Companion</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Send push notifications</td>
+            <td>Firebase HTTP v1, or optional <span class="lib">firebase-admin</span>.</td>
+            <td>Firebase JS SDK for web, Firebase Messaging for Android/iOS.</td>
+          </tr>
+          <tr>
+            <td>Device registration</td>
+            <td>DTO validation, Prisma upsert, unique FCM token storage.</td>
+            <td>Request permission, get token, refresh token when FCM rotates it.</td>
+          </tr>
+          <tr>
+            <td>In-app inbox</td>
+            <td><span class="lib">InboxMessage</span>, unread/read state, JSON data payload.</td>
+            <td>Notifications tab, badge count, deep link to booking details.</td>
+          </tr>
+          <tr>
+            <td>Background jobs</td>
+            <td><span class="lib">@nestjs/bullmq</span>, <span class="lib">bullmq</span>, queue processors.</td>
+            <td>No direct client library needed. UI should show eventual status when jobs finish.</td>
+          </tr>
+          <tr>
+            <td>Redis connection</td>
+            <td><span class="lib">ioredis</span>, Redis URL parsing, retry behavior.</td>
+            <td>No direct client library needed. It supports backend cache and queues.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>BullMQ Topics To Learn</h3>
+      <div class="checklist">
+        <ul>
+          <li>Queues, jobs, workers, processors, and job names.</li>
+          <li>Attempts, exponential backoff, delayed retries, and failed jobs.</li>
+          <li>Idempotency: avoid sending the same notification twice.</li>
+          <li>Outbox pattern: save the side effect before or during delivery.</li>
+          <li>Operational monitoring: Redis memory, stalled jobs, and queue dashboards.</li>
+        </ul>
+      </div>
+
+      <h3>Redis Topics To Learn</h3>
+      <div class="checklist">
+        <ul>
+          <li>Key/value basics, TTL, eviction, persistence, and connection strings.</li>
+          <li>Redis as a queue backend for BullMQ.</li>
+          <li>Redis as a cache backend for dashboard and setup warning read models.</li>
+          <li>Local Redis through Docker Compose and production Redis hosting.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="page">
+      <h2>Database, Auth, API, And Deployment Topics</h2>
+
+      <div class="module-grid">
+        <div class="module-box">
+          <h3>Prisma And PostgreSQL</h3>
+          <ul>
+            <li>Model relations: user to business, customer to car, booking to service.</li>
+            <li>Migrations and when to use <code>migrate dev</code> vs <code>migrate deploy</code>.</li>
+            <li>Indexes for common filters such as booking status, dates, and unread inbox.</li>
+            <li>Transactions for multi-step writes.</li>
+            <li>JSON fields for preferences and flexible mobile state.</li>
+          </ul>
+        </div>
+
+        <div class="module-box">
+          <h3>Authentication And Authorization</h3>
+          <ul>
+            <li>JWT access token structure and expiration.</li>
+            <li>Refresh token rotation and revocation.</li>
+            <li>Role guards for client, business, and admin users.</li>
+            <li>Password hashing with argon2.</li>
+            <li>MFA fields and security preferences.</li>
+          </ul>
+        </div>
+
+        <div class="module-box">
+          <h3>REST API Design</h3>
+          <ul>
+            <li>Controllers, route naming, and HTTP status codes.</li>
+            <li>DTOs for request bodies and query params.</li>
+            <li>Pagination responses and filtering.</li>
+            <li>OpenAPI/Swagger contracts and frontend coordination.</li>
+            <li>Error handling through Nest exceptions.</li>
+          </ul>
+        </div>
+
+        <div class="module-box">
+          <h3>Testing</h3>
+          <ul>
+            <li>Unit tests for service methods and serializers.</li>
+            <li>E2E tests with Supertest for auth, bookings, and notifications.</li>
+            <li>Mocking Prisma and external FCM delivery.</li>
+            <li>Testing queue fallback behavior when Redis is disabled.</li>
+            <li>Seed data for predictable booking scenarios.</li>
+          </ul>
+        </div>
+
+        <div class="module-box">
+          <h3>Deployment And Ops</h3>
+          <ul>
+            <li>Environment variables and secret management.</li>
+            <li>Database migrations in production startup.</li>
+            <li>Redis availability and queue workers.</li>
+            <li>Logging failed notification delivery.</li>
+            <li>CORS configuration for website and mobile clients.</li>
+          </ul>
+        </div>
+
+        <div class="module-box">
+          <h3>Useful Commands</h3>
+          <ul>
+            <li><code>npm run db:dev:up</code> starts PostgreSQL and Redis.</li>
+            <li><code>npm run prisma:migrate</code> creates and applies local migrations.</li>
+            <li><code>npm run prisma:generate</code> refreshes Prisma client types.</li>
+            <li><code>npm run build</code> verifies TypeScript compilation.</li>
+            <li><code>npm test</code> runs Jest specs when spec files exist.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="page">
+      <h2>Suggested Learning Order</h2>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 15%">Phase</th>
+            <th style="width: 30%">Focus</th>
+            <th>Outcome</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>TypeScript, Node.js, npm scripts, environment variables.</td>
+            <td>You can run the project, read types, and understand build errors.</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>NestJS modules, controllers, services, guards, DTO validation.</td>
+            <td>You can follow a request from route to database and back.</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>Prisma, PostgreSQL, migrations, schema relations.</td>
+            <td>You can safely add fields, tables, indexes, and queries.</td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td>Auth: JWT, Passport, refresh tokens, roles, argon2.</td>
+            <td>You can protect routes and reason about user sessions.</td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td>Bookings domain: customers, cars, services, status changes.</td>
+            <td>You can change business workflows without breaking API responses.</td>
+          </tr>
+          <tr>
+            <td>6</td>
+            <td>Notifications: inbox, preferences, FCM, device tokens.</td>
+            <td>You can send booking updates to website and mobile users.</td>
+          </tr>
+          <tr>
+            <td>7</td>
+            <td>Redis and BullMQ: queues, retries, cache, background processing.</td>
+            <td>You can move slow work out of HTTP requests and operate queues.</td>
+          </tr>
+          <tr>
+            <td>8</td>
+            <td>Testing, OpenAPI, deployment, monitoring.</td>
+            <td>You can ship changes with confidence and debug production issues.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Minimum Practical Checklist</h3>
+      <div class="checklist">
+        <ul>
+          <li>Run the backend locally with PostgreSQL and Redis.</li>
+          <li>Create a business account, client account, vehicle, service, and booking.</li>
+          <li>Trace the booking response shape from controller to serializer.</li>
+          <li>Add a small Prisma field and create a migration.</li>
+          <li>Register a notification device token and inspect the database row.</li>
+          <li>Change a booking status and verify inbox notification creation.</li>
+          <li>Turn Redis queues on and observe queue behavior.</li>
+          <li>Add one Jest test for a booking or notification service method.</li>
+        </ul>
+      </div>
+
+      <div class="callout">
+        <strong>Recommended first deep dive:</strong>
+        learn NestJS and Prisma together. Those two explain most of the code.
+        After that, Redis/BullMQ and FCM will feel like extensions of the same
+        service architecture instead of separate mysteries.
+      </div>
+    </section>
+  </body>
+</html>

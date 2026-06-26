@@ -3,7 +3,12 @@ import {
   ConflictException,
   Injectable,
 } from '@nestjs/common';
-import { BusinessType, EmployeeCount, TwoFactorMethod } from '@prisma/client';
+import {
+  BusinessType,
+  EmployeeCount,
+  Prisma,
+  TwoFactorMethod,
+} from '@prisma/client';
 import { RedisCacheService } from 'src/common/cache/redis-cache.service';
 import { cacheKeys } from 'src/common/cache/cache-keys';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -161,14 +166,40 @@ export class OnboardingService {
     dto: OwnerInformationDto,
   ) {
     const id = this.requireBusinessId(businessId);
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        firstName: dto.firstName,
-        lastName: dto.lastName,
-        email: dto.email,
-      },
+    const existingEmailOwner = await this.prisma.user.findUnique({
+      where: { email: dto.email },
     });
+    const email =
+      !existingEmailOwner || existingEmailOwner.id === userId
+        ? dto.email
+        : undefined;
+
+    try {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          email,
+        },
+      });
+    } catch (e) {
+      if (
+        !(
+          e instanceof Prisma.PrismaClientKnownRequestError &&
+          e.code === 'P2002'
+        )
+      ) {
+        throw e;
+      }
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+        },
+      });
+    }
     await this.prisma.business.update({
       where: { id },
       data: {

@@ -1,0 +1,2565 @@
+openapi: 3.0.3
+info:
+  title: Sal7ha Mobile App Backend API
+  version: 1.0.0
+  description: |
+    Backend contract inferred from the Flutter project and the existing AI Car
+    Parts Detection API.
+
+    Important AI rule:
+    - The live chatbot and image-detection connection stays the same.
+    - Existing AI endpoints are documented under the "AI live service" tag.
+    - Persistence is separate: the app backend stores and retrieves chat history,
+      detection records, uploaded images, and detected objects through the
+      "AI persistence" endpoints.
+
+    Database tables are documented in the vendor extension `x-database-tables`
+    because OpenAPI/Swagger describes APIs, not relational schemas.
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Main Sal7ha backend
+  - url: http://10.0.2.2:3000
+    description: Existing AI service for Android emulator
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Auth
+    description: Registration, login, email verification, and session management.
+  - name: Users
+    description: Current user profile, preferences, and address details.
+  - name: Vehicles
+    description: User car details used while booking.
+  - name: Catalog
+    description: Service categories, services, oil brands, and lookup data.
+  - name: Shops
+    description: Search, filter, profile, availability, services, and reviews.
+  - name: Bookings
+    description: Quotes, appointment creation, booking history, and cancellation.
+  - name: Payments
+    description: Payment methods and non-sensitive billing details.
+  - name: Notifications
+    description: User notifications and read state.
+  - name: Shop chat
+    description: User-to-shop support/chat messages.
+  - name: Uploads
+    description: Image uploads used by profiles and AI history storage.
+  - name: AI live service
+    description: Existing chatbot and detection endpoints. Keep these contracts unchanged.
+  - name: AI persistence
+    description: Backend storage and retrieval for AI chat and detection history.
+
+x-database-tables:
+  - name: users
+    purpose: Authentication identity.
+    columns:
+      id: uuid primary key
+      username: varchar unique nullable
+      email: varchar unique not null
+      password_hash: varchar nullable for social accounts
+      auth_provider: enum(email, google, facebook, apple)
+      provider_subject: varchar nullable
+      role: enum(customer, shop_owner, admin)
+      email_verified_at: timestamptz nullable
+      created_at: timestamptz
+      updated_at: timestamptz
+  - name: user_profiles
+    purpose: Personal details screen and profile tab.
+    columns:
+      user_id: uuid primary key references users.id
+      first_name: varchar
+      surname: varchar
+      date_of_birth: date nullable
+      gender: varchar nullable
+      phone: varchar nullable
+      avatar_file_id: uuid nullable references uploaded_files.id
+      country: varchar nullable
+      city: varchar nullable
+      state: varchar nullable
+      street_address: varchar nullable
+      zip_code: varchar nullable
+      language: enum(en, ar)
+      theme: enum(system, light, dark)
+      updated_at: timestamptz
+  - name: vehicles
+    purpose: Cars attached to a user and selected during booking.
+    columns:
+      id: uuid primary key
+      user_id: uuid references users.id
+      make: varchar
+      model: varchar
+      fuel_type: varchar nullable
+      year_of_manufacture: smallint nullable
+      transmission_type: varchar nullable
+      license_plate_number: varchar nullable
+      vin: varchar nullable
+      nickname: varchar nullable
+      logo_file_id: uuid nullable references uploaded_files.id
+      created_at: timestamptz
+      updated_at: timestamptz
+  - name: service_categories
+    purpose: Home/services tab categories.
+    columns:
+      id: uuid primary key
+      name: varchar
+      name_ar: varchar nullable
+      icon_key: varchar nullable
+      sort_order: int
+      active: boolean
+  - name: services
+    purpose: Service catalog and shop service list.
+    columns:
+      id: uuid primary key
+      category_id: uuid references service_categories.id
+      name: varchar
+      name_ar: varchar nullable
+      description: text nullable
+      price_min: numeric nullable
+      price_max: numeric nullable
+      duration_minutes: int nullable
+      active: boolean
+  - name: oil_brands
+    purpose: Oil brand selector in booking.
+    columns:
+      id: uuid primary key
+      name: varchar unique
+      logo_file_id: uuid nullable references uploaded_files.id
+      active: boolean
+  - name: shops
+    purpose: Search results and shop profile.
+    columns:
+      id: uuid primary key
+      owner_user_id: uuid nullable references users.id
+      name: varchar
+      name_ar: varchar nullable
+      facility_type: varchar
+      description: text nullable
+      city: varchar
+      area: varchar nullable
+      address: varchar
+      latitude: numeric nullable
+      longitude: numeric nullable
+      phone: varchar nullable
+      whatsapp: varchar nullable
+      email: varchar nullable
+      facebook_url: varchar nullable
+      instagram_url: varchar nullable
+      logo_file_id: uuid nullable references uploaded_files.id
+      cover_file_id: uuid nullable references uploaded_files.id
+      rating_average: numeric default 0
+      review_count: int default 0
+      active: boolean
+  - name: shop_specialties
+    purpose: Tags and chatbot/shop matching.
+    columns:
+      id: uuid primary key
+      shop_id: uuid references shops.id
+      name: varchar
+  - name: shop_working_hours
+    purpose: About tab and booking availability.
+    columns:
+      id: uuid primary key
+      shop_id: uuid references shops.id
+      day_of_week: smallint
+      opens_at: time nullable
+      closes_at: time nullable
+      is_closed: boolean
+  - name: technicians
+    purpose: Shop profile and booking assignment.
+    columns:
+      id: uuid primary key
+      shop_id: uuid references shops.id
+      name: varchar
+      specialty: varchar nullable
+      status: enum(available, busy, unavailable)
+  - name: shop_services
+    purpose: Which shops offer which services and at what price.
+    columns:
+      shop_id: uuid references shops.id
+      service_id: uuid references services.id
+      price_min: numeric nullable
+      price_max: numeric nullable
+      duration_minutes: int nullable
+      active: boolean
+  - name: reviews
+    purpose: Shop profile reviews and ratings.
+    columns:
+      id: uuid primary key
+      user_id: uuid references users.id
+      shop_id: uuid references shops.id
+      booking_id: uuid nullable references bookings.id
+      rating: smallint
+      comment: text nullable
+      created_at: timestamptz
+  - name: bookings
+    purpose: Appointment flow and booking history tabs.
+    columns:
+      id: uuid primary key
+      user_id: uuid references users.id
+      shop_id: uuid references shops.id
+      vehicle_id: uuid references vehicles.id
+      service_id: uuid references services.id
+      technician_id: uuid nullable references technicians.id
+      oil_brand_id: uuid nullable references oil_brands.id
+      scheduled_date: date
+      scheduled_time: time nullable
+      any_time: boolean default false
+      notes: text nullable
+      status: enum(pending, confirmed, active, in_progress, completed, cancelled)
+      estimate_min: numeric nullable
+      estimate_max: numeric nullable
+      fees: numeric default 0
+      total: numeric nullable
+      currency: varchar default EGP
+      payment_method_id: uuid nullable references payment_methods.id
+      created_at: timestamptz
+      updated_at: timestamptz
+  - name: payment_methods
+    purpose: Payment selector and card list. Never store raw CVV.
+    columns:
+      id: uuid primary key
+      user_id: uuid references users.id
+      type: enum(cash, card, paypal)
+      provider: varchar nullable
+      provider_token: varchar nullable
+      card_brand: varchar nullable
+      card_last4: varchar nullable
+      expiry_month: smallint nullable
+      expiry_year: smallint nullable
+      cardholder_name: varchar nullable
+      billing_country: varchar nullable
+      billing_city: varchar nullable
+      billing_state: varchar nullable
+      billing_street: varchar nullable
+      billing_suite: varchar nullable
+      billing_postal_code: varchar nullable
+      is_default: boolean
+      created_at: timestamptz
+  - name: notifications
+    purpose: Notifications screen.
+    columns:
+      id: uuid primary key
+      user_id: uuid references users.id
+      type: varchar
+      title: varchar
+      body: text
+      data_json: jsonb nullable
+      read_at: timestamptz nullable
+      created_at: timestamptz
+  - name: shop_chat_threads
+    purpose: Chat button on shop profile.
+    columns:
+      id: uuid primary key
+      user_id: uuid references users.id
+      shop_id: uuid references shops.id
+      last_message_at: timestamptz nullable
+      created_at: timestamptz
+  - name: shop_chat_messages
+    purpose: User-to-shop messages.
+    columns:
+      id: uuid primary key
+      thread_id: uuid references shop_chat_threads.id
+      sender_user_id: uuid references users.id
+      body: text
+      created_at: timestamptz
+      read_at: timestamptz nullable
+  - name: ai_chat_sessions
+    purpose: Stored chatbot conversations; does not replace the live /api/chat endpoint.
+    columns:
+      id: uuid primary key
+      user_id: uuid references users.id
+      title: varchar nullable
+      ai_base_url: varchar nullable
+      created_at: timestamptz
+      updated_at: timestamptz
+  - name: ai_chat_messages
+    purpose: Stored user/model messages returned by the existing chatbot.
+    columns:
+      id: uuid primary key
+      session_id: uuid references ai_chat_sessions.id
+      role: enum(user, model)
+      content: text
+      created_at: timestamptz
+  - name: ai_detection_records
+    purpose: Stored image-detection runs after the existing /detect or /detect/image call.
+    columns:
+      id: uuid primary key
+      user_id: uuid references users.id
+      original_file_id: uuid references uploaded_files.id
+      annotated_file_id: uuid nullable references uploaded_files.id
+      selected_parts: text[] nullable
+      detected_parts: text[] nullable
+      detection_count: int
+      confidence_threshold: numeric
+      ai_base_url: varchar nullable
+      created_at: timestamptz
+  - name: ai_detected_objects
+    purpose: Individual detected boxes for JSON detection history.
+    columns:
+      id: uuid primary key
+      detection_record_id: uuid references ai_detection_records.id
+      class_id: int
+      class_name: varchar
+      confidence: numeric
+      x1: numeric
+      y1: numeric
+      x2: numeric
+      y2: numeric
+      width: numeric
+      height: numeric
+  - name: uploaded_files
+    purpose: Stores user, shop, review, and AI image file references.
+    columns:
+      id: uuid primary key
+      owner_user_id: uuid nullable references users.id
+      purpose: varchar
+      url: varchar
+      content_type: varchar
+      size_bytes: bigint
+      original_filename: varchar nullable
+      created_at: timestamptz
+
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register with email and password.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Registered user and tokens.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login with email and password.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authenticated user and tokens.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke the current refresh token/session.
+      responses:
+        '204':
+          description: Logged out.
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: New token pair.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokens'
+
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Send a password reset email.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '202':
+          description: Reset email accepted if account exists.
+
+  /auth/verify-email:
+    post:
+      tags: [Auth]
+      summary: Verify email using a code/token.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, code]
+              properties:
+                email:
+                  type: string
+                  format: email
+                code:
+                  type: string
+      responses:
+        '200':
+          description: Email verified.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /me:
+    get:
+      tags: [Users]
+      summary: Get the signed-in user.
+      responses:
+        '200':
+          description: Current user with profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    patch:
+      tags: [Users]
+      summary: Update username or email.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdateRequest'
+      responses:
+        '200':
+          description: Updated user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /me/profile:
+    put:
+      tags: [Users]
+      summary: Create or replace personal details.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileUpdateRequest'
+      responses:
+        '200':
+          description: Updated profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+
+  /me/preferences:
+    patch:
+      tags: [Users]
+      summary: Update language/theme preferences.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreferencesUpdateRequest'
+      responses:
+        '200':
+          description: Updated profile preferences.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+
+  /vehicles:
+    get:
+      tags: [Vehicles]
+      summary: List current user's vehicles.
+      responses:
+        '200':
+          description: Vehicle list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Vehicle'
+    post:
+      tags: [Vehicles]
+      summary: Add a vehicle.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleCreateRequest'
+      responses:
+        '201':
+          description: Created vehicle.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vehicle'
+
+  /vehicles/{vehicleId}:
+    parameters:
+      - $ref: '#/components/parameters/VehicleId'
+    get:
+      tags: [Vehicles]
+      summary: Get one vehicle.
+      responses:
+        '200':
+          description: Vehicle.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vehicle'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Vehicles]
+      summary: Update a vehicle.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleCreateRequest'
+      responses:
+        '200':
+          description: Updated vehicle.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vehicle'
+    delete:
+      tags: [Vehicles]
+      summary: Delete a vehicle.
+      responses:
+        '204':
+          description: Deleted.
+
+  /service-categories:
+    get:
+      tags: [Catalog]
+      summary: List service categories for home/services screens.
+      parameters:
+        - name: includeInactive
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Service categories.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServiceCategory'
+
+  /services:
+    get:
+      tags: [Catalog]
+      summary: List or search service catalog.
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: categoryId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Service list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Service'
+
+  /services/{serviceId}:
+    parameters:
+      - $ref: '#/components/parameters/ServiceId'
+    get:
+      tags: [Catalog]
+      summary: Get a service.
+      responses:
+        '200':
+          description: Service.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+
+  /oil-brands:
+    get:
+      tags: [Catalog]
+      summary: List oil brands for booking.
+      responses:
+        '200':
+          description: Oil brand list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OilBrand'
+
+  /shops:
+    get:
+      tags: [Shops]
+      summary: Search shops with filters and sorting.
+      parameters:
+        - name: q
+          in: query
+          description: Free-text query against shop names, service names, and specialties.
+          schema:
+            type: string
+        - name: serviceId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: city
+          in: query
+          schema:
+            type: string
+        - name: latitude
+          in: query
+          schema:
+            type: number
+            format: double
+        - name: longitude
+          in: query
+          schema:
+            type: number
+            format: double
+        - name: radiusKm
+          in: query
+          schema:
+            type: number
+            default: 15
+        - name: priceMin
+          in: query
+          schema:
+            type: number
+        - name: priceMax
+          in: query
+          schema:
+            type: number
+        - name: minRating
+          in: query
+          schema:
+            type: number
+            minimum: 0
+            maximum: 5
+        - name: tags
+          in: query
+          description: Comma-separated specialties or tags.
+          schema:
+            type: string
+        - name: language
+          in: query
+          schema:
+            type: string
+            enum: [ar, en]
+        - name: availabilityDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [highest_rated, relevance, popularity, availability, price_high, price_low]
+            default: highest_rated
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated shops.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ShopSummary'
+
+  /shops/{shopId}:
+    parameters:
+      - $ref: '#/components/parameters/ShopId'
+    get:
+      tags: [Shops]
+      summary: Get full shop profile.
+      responses:
+        '200':
+          description: Shop profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shop'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /shops/{shopId}/services:
+    parameters:
+      - $ref: '#/components/parameters/ShopId'
+    get:
+      tags: [Shops]
+      summary: List services offered by a shop.
+      responses:
+        '200':
+          description: Shop service list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ShopService'
+
+  /shops/{shopId}/availability:
+    parameters:
+      - $ref: '#/components/parameters/ShopId'
+      - name: date
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+      - name: serviceId
+        in: query
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Shops]
+      summary: Get available appointment slots for a shop/date.
+      responses:
+        '200':
+          description: Availability slots.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvailabilityResponse'
+
+  /shops/{shopId}/reviews:
+    parameters:
+      - $ref: '#/components/parameters/ShopId'
+    get:
+      tags: [Shops]
+      summary: List shop reviews.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated reviews.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Review'
+    post:
+      tags: [Shops]
+      summary: Create a review for a completed booking.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewCreateRequest'
+      responses:
+        '201':
+          description: Created review.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+
+  /bookings/quote:
+    post:
+      tags: [Bookings]
+      summary: Calculate estimated booking price before payment.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingQuoteRequest'
+      responses:
+        '200':
+          description: Booking quote.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingQuoteResponse'
+
+  /bookings:
+    get:
+      tags: [Bookings]
+      summary: List current user's bookings.
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [all, pending, confirmed, active, in_progress, completed, cancelled]
+            default: all
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated bookings.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Booking'
+    post:
+      tags: [Bookings]
+      summary: Create a booking.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingCreateRequest'
+      responses:
+        '201':
+          description: Created booking.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+
+  /bookings/{bookingId}:
+    parameters:
+      - $ref: '#/components/parameters/BookingId'
+    get:
+      tags: [Bookings]
+      summary: Get booking details.
+      responses:
+        '200':
+          description: Booking.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /bookings/{bookingId}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/BookingId'
+    post:
+      tags: [Bookings]
+      summary: Cancel a booking.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Cancelled booking.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+
+  /payment-methods:
+    get:
+      tags: [Payments]
+      summary: List current user's payment methods.
+      responses:
+        '200':
+          description: Payment methods.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PaymentMethod'
+    post:
+      tags: [Payments]
+      summary: Add a payment method.
+      description: Store provider tokens and last4 only; never store raw CVV.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentMethodCreateRequest'
+      responses:
+        '201':
+          description: Created payment method.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentMethod'
+
+  /payment-methods/{paymentMethodId}:
+    parameters:
+      - $ref: '#/components/parameters/PaymentMethodId'
+    delete:
+      tags: [Payments]
+      summary: Delete a payment method.
+      responses:
+        '204':
+          description: Deleted.
+
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: List notifications for current user.
+      parameters:
+        - name: unreadOnly
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated notifications.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Notification'
+
+  /notifications/{notificationId}/read:
+    parameters:
+      - $ref: '#/components/parameters/NotificationId'
+    patch:
+      tags: [Notifications]
+      summary: Mark notification as read.
+      responses:
+        '200':
+          description: Updated notification.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+
+  /shop-chat/threads:
+    get:
+      tags: [Shop chat]
+      summary: List current user's shop chat threads.
+      responses:
+        '200':
+          description: Shop chat threads.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ShopChatThread'
+    post:
+      tags: [Shop chat]
+      summary: Create or get a chat thread with a shop.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [shopId]
+              properties:
+                shopId:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Thread.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShopChatThread'
+
+  /shop-chat/threads/{threadId}/messages:
+    parameters:
+      - $ref: '#/components/parameters/ThreadId'
+    get:
+      tags: [Shop chat]
+      summary: List messages in a shop chat thread.
+      responses:
+        '200':
+          description: Messages.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ShopChatMessage'
+    post:
+      tags: [Shop chat]
+      summary: Send a message to a shop.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body:
+                  type: string
+      responses:
+        '201':
+          description: Created message.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShopChatMessage'
+
+  /uploads/images:
+    post:
+      tags: [Uploads]
+      summary: Upload an image and receive a stored file reference.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image, purpose]
+              properties:
+                image:
+                  type: string
+                  format: binary
+                purpose:
+                  type: string
+                  enum: [profile_avatar, shop_logo, shop_cover, ai_original, ai_annotated, review]
+      responses:
+        '201':
+          description: Uploaded file.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadedFile'
+
+  /ai/chat-sessions:
+    get:
+      tags: [AI persistence]
+      summary: List stored AI chat sessions for current user.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated AI chat sessions.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/AIChatSession'
+    post:
+      tags: [AI persistence]
+      summary: Create a stored AI chat session.
+      description: This does not call the chatbot. Use existing POST /api/chat for live replies.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                aiBaseUrl:
+                  type: string
+                  example: http://10.0.2.2:3000
+      responses:
+        '201':
+          description: Created session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIChatSession'
+
+  /ai/chat-sessions/{sessionId}:
+    parameters:
+      - $ref: '#/components/parameters/AIChatSessionId'
+    get:
+      tags: [AI persistence]
+      summary: Get a stored AI chat session with messages.
+      responses:
+        '200':
+          description: Session details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIChatSessionDetail'
+    delete:
+      tags: [AI persistence]
+      summary: Delete a stored AI chat session.
+      responses:
+        '204':
+          description: Deleted.
+
+  /ai/chat-sessions/{sessionId}/messages:
+    parameters:
+      - $ref: '#/components/parameters/AIChatSessionId'
+    get:
+      tags: [AI persistence]
+      summary: List stored messages for an AI chat session.
+      responses:
+        '200':
+          description: Messages.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AIChatMessage'
+    post:
+      tags: [AI persistence]
+      summary: Store one or more AI chat messages.
+      description: |
+        Store the user message and model reply after the mobile app receives a
+        response from the unchanged live POST /api/chat endpoint.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [messages]
+              properties:
+                messages:
+                  type: array
+                  minItems: 1
+                  items:
+                    $ref: '#/components/schemas/AIChatMessageCreateRequest'
+      responses:
+        '201':
+          description: Stored messages.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AIChatMessage'
+
+  /ai/detections:
+    get:
+      tags: [AI persistence]
+      summary: List stored AI detection records for current user.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated detection records.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/AIDetectionRecord'
+    post:
+      tags: [AI persistence]
+      summary: Store an image-detection result.
+      description: |
+        Store metadata after the existing /detect or /detect/image call. Upload
+        original and annotated images first with POST /uploads/images.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AIDetectionCreateRequest'
+      responses:
+        '201':
+          description: Stored detection record.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIDetectionRecord'
+
+  /ai/detections/{detectionId}:
+    parameters:
+      - $ref: '#/components/parameters/AIDetectionId'
+    get:
+      tags: [AI persistence]
+      summary: Get one stored detection record.
+      responses:
+        '200':
+          description: Detection record.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIDetectionRecord'
+    delete:
+      tags: [AI persistence]
+      summary: Delete a stored detection record.
+      responses:
+        '204':
+          description: Deleted.
+
+  /health:
+    get:
+      tags: [AI live service]
+      summary: Existing detection API health check.
+      security: []
+      responses:
+        '200':
+          description: Detection health.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  modelLoaded:
+                    type: boolean
+
+  /api/health:
+    get:
+      tags: [AI live service]
+      summary: Existing chatbot health check.
+      security: []
+      responses:
+        '200':
+          description: Chatbot health.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  service:
+                    type: string
+                    example: Car Service Platform Chatbot
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /classes:
+    get:
+      tags: [AI live service]
+      summary: Existing detection part-class list.
+      security: []
+      parameters:
+        - name: includeNumeric
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Detectable parts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetectionClassesResponse'
+
+  /detect:
+    post:
+      tags: [AI live service]
+      summary: Existing JSON image-detection endpoint.
+      security: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DetectMultipartRequest'
+      responses:
+        '200':
+          description: JSON detection result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetectResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '413':
+          description: Image too large.
+
+  /detect/image:
+    post:
+      tags: [AI live service]
+      summary: Existing annotated PNG image-detection endpoint.
+      security: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DetectMultipartRequest'
+      responses:
+        '200':
+          description: Annotated PNG image.
+          headers:
+            X-Detection-Count:
+              schema:
+                type: integer
+            X-Detection-Classes:
+              schema:
+                type: string
+              description: URL-encoded comma-separated detected class names.
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '413':
+          description: Image too large.
+
+  /api/chat:
+    post:
+      tags: [AI live service]
+      summary: Existing chatbot endpoint.
+      description: Keep request and response shape unchanged.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AIChatLiveRequest'
+      responses:
+        '200':
+          description: Chatbot reply.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIChatLiveResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/brand/{name}:
+    parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [AI live service]
+      summary: Existing chatbot car-brand lookup.
+      security: []
+      responses:
+        '200':
+          description: Brand lookup result.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  found:
+                    type: boolean
+                  data:
+                    type: object
+                    nullable: true
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    VehicleId:
+      name: vehicleId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ServiceId:
+      name: serviceId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ShopId:
+      name: shopId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    BookingId:
+      name: bookingId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PaymentMethodId:
+      name: paymentMethodId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    NotificationId:
+      name: notificationId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ThreadId:
+      name: threadId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    AIChatSessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    AIDetectionId:
+      name: detectionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid bearer token.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ValidationError:
+      description: Validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+        code:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+
+    PaginatedResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: {}
+        meta:
+          type: object
+          required: [page, limit, total]
+          properties:
+            page:
+              type: integer
+            limit:
+              type: integer
+            total:
+              type: integer
+
+    RegisterRequest:
+      type: object
+      required: [username, email, password]
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 6
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+        rememberMe:
+          type: boolean
+          default: false
+
+    AuthResponse:
+      type: object
+      required: [user, tokens]
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        tokens:
+          $ref: '#/components/schemas/AuthTokens'
+
+    AuthTokens:
+      type: object
+      required: [accessToken, refreshToken, expiresIn]
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        expiresIn:
+          type: integer
+          example: 3600
+
+    User:
+      type: object
+      required: [id, email, role, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+          nullable: true
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [customer, shop_owner, admin]
+        emailVerified:
+          type: boolean
+        profile:
+          $ref: '#/components/schemas/UserProfile'
+        createdAt:
+          type: string
+          format: date-time
+
+    UserUpdateRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+
+    UserProfile:
+      type: object
+      properties:
+        firstName:
+          type: string
+          nullable: true
+        surname:
+          type: string
+          nullable: true
+        dateOfBirth:
+          type: string
+          format: date
+          nullable: true
+        gender:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        avatar:
+          $ref: '#/components/schemas/UploadedFile'
+        address:
+          $ref: '#/components/schemas/Address'
+        language:
+          type: string
+          enum: [en, ar]
+        theme:
+          type: string
+          enum: [system, light, dark]
+
+    ProfileUpdateRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+        surname:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date
+        gender:
+          type: string
+        phone:
+          type: string
+        avatarFileId:
+          type: string
+          format: uuid
+        address:
+          $ref: '#/components/schemas/Address'
+
+    PreferencesUpdateRequest:
+      type: object
+      properties:
+        language:
+          type: string
+          enum: [en, ar]
+        theme:
+          type: string
+          enum: [system, light, dark]
+
+    Address:
+      type: object
+      properties:
+        country:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        streetAddress:
+          type: string
+        zipCode:
+          type: string
+
+    Vehicle:
+      type: object
+      required: [id, userId, make, model]
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        make:
+          type: string
+        model:
+          type: string
+        fuelType:
+          type: string
+          nullable: true
+        yearOfManufacture:
+          type: integer
+          nullable: true
+        transmissionType:
+          type: string
+          nullable: true
+        licensePlateNumber:
+          type: string
+          nullable: true
+        vin:
+          type: string
+          nullable: true
+        nickname:
+          type: string
+          nullable: true
+        logo:
+          $ref: '#/components/schemas/UploadedFile'
+
+    VehicleCreateRequest:
+      type: object
+      required: [make, model]
+      properties:
+        make:
+          type: string
+        model:
+          type: string
+        fuelType:
+          type: string
+        yearOfManufacture:
+          type: integer
+        transmissionType:
+          type: string
+        licensePlateNumber:
+          type: string
+        vin:
+          type: string
+        nickname:
+          type: string
+
+    ServiceCategory:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        nameAr:
+          type: string
+          nullable: true
+        iconKey:
+          type: string
+          nullable: true
+
+    Service:
+      type: object
+      required: [id, name, category]
+      properties:
+        id:
+          type: string
+          format: uuid
+        category:
+          $ref: '#/components/schemas/ServiceCategory'
+        name:
+          type: string
+        nameAr:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        priceRange:
+          $ref: '#/components/schemas/PriceRange'
+        durationMinutes:
+          type: integer
+          nullable: true
+
+    OilBrand:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        logo:
+          $ref: '#/components/schemas/UploadedFile'
+
+    PriceRange:
+      type: object
+      properties:
+        min:
+          type: number
+          nullable: true
+        max:
+          type: number
+          nullable: true
+        currency:
+          type: string
+          default: EGP
+
+    ShopSummary:
+      type: object
+      required: [id, name, facilityType, ratingAverage, reviewCount]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        nameAr:
+          type: string
+          nullable: true
+        facilityType:
+          type: string
+          example: repair_shop
+        description:
+          type: string
+        city:
+          type: string
+        area:
+          type: string
+          nullable: true
+        address:
+          type: string
+        distanceKm:
+          type: number
+          nullable: true
+        hourlyRate:
+          type: number
+          nullable: true
+        ratingAverage:
+          type: number
+        reviewCount:
+          type: integer
+        logo:
+          $ref: '#/components/schemas/UploadedFile'
+        tags:
+          type: array
+          items:
+            type: string
+
+    Shop:
+      allOf:
+        - $ref: '#/components/schemas/ShopSummary'
+        - type: object
+          properties:
+            phone:
+              type: string
+            whatsapp:
+              type: string
+            email:
+              type: string
+              format: email
+            facebookUrl:
+              type: string
+              nullable: true
+            instagramUrl:
+              type: string
+              nullable: true
+            cover:
+              $ref: '#/components/schemas/UploadedFile'
+            workingHours:
+              type: array
+              items:
+                $ref: '#/components/schemas/WorkingHour'
+            technicians:
+              type: array
+              items:
+                $ref: '#/components/schemas/Technician'
+            services:
+              type: array
+              items:
+                $ref: '#/components/schemas/ShopService'
+
+    WorkingHour:
+      type: object
+      required: [dayOfWeek, isClosed]
+      properties:
+        dayOfWeek:
+          type: integer
+          minimum: 0
+          maximum: 6
+          description: 0 is Sunday.
+        opensAt:
+          type: string
+          nullable: true
+          example: '09:00'
+        closesAt:
+          type: string
+          nullable: true
+          example: '20:00'
+        isClosed:
+          type: boolean
+
+    Technician:
+      type: object
+      required: [id, name, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        specialty:
+          type: string
+        status:
+          type: string
+          enum: [available, busy, unavailable]
+
+    ShopService:
+      type: object
+      required: [shopId, service]
+      properties:
+        shopId:
+          type: string
+          format: uuid
+        service:
+          $ref: '#/components/schemas/Service'
+        priceRange:
+          $ref: '#/components/schemas/PriceRange'
+        durationMinutes:
+          type: integer
+
+    AvailabilityResponse:
+      type: object
+      required: [shopId, date, slots]
+      properties:
+        shopId:
+          type: string
+          format: uuid
+        date:
+          type: string
+          format: date
+        slots:
+          type: array
+          items:
+            type: object
+            required: [time, available]
+            properties:
+              time:
+                type: string
+                example: '09:00'
+              available:
+                type: boolean
+              technicianId:
+                type: string
+                format: uuid
+                nullable: true
+
+    Review:
+      type: object
+      required: [id, shopId, userId, rating, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        shopId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        userName:
+          type: string
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    ReviewCreateRequest:
+      type: object
+      required: [bookingId, rating]
+      properties:
+        bookingId:
+          type: string
+          format: uuid
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+
+    BookingQuoteRequest:
+      type: object
+      required: [shopId, serviceId]
+      properties:
+        shopId:
+          type: string
+          format: uuid
+        serviceId:
+          type: string
+          format: uuid
+        vehicleId:
+          type: string
+          format: uuid
+        oilBrandId:
+          type: string
+          format: uuid
+        scheduledDate:
+          type: string
+          format: date
+        scheduledTime:
+          type: string
+          nullable: true
+          example: '09:00'
+
+    BookingQuoteResponse:
+      type: object
+      required: [estimateMin, estimateMax, fees, currency]
+      properties:
+        estimateMin:
+          type: number
+        estimateMax:
+          type: number
+        fees:
+          type: number
+        totalMin:
+          type: number
+        totalMax:
+          type: number
+        currency:
+          type: string
+          example: EGP
+
+    BookingCreateRequest:
+      allOf:
+        - $ref: '#/components/schemas/BookingQuoteRequest'
+        - type: object
+          required: [vehicleId, scheduledDate, anyTime]
+          properties:
+            anyTime:
+              type: boolean
+            notes:
+              type: string
+            paymentMethodId:
+              type: string
+              format: uuid
+
+    Booking:
+      type: object
+      required: [id, userId, shop, service, vehicle, status, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        shop:
+          $ref: '#/components/schemas/ShopSummary'
+        service:
+          $ref: '#/components/schemas/Service'
+        vehicle:
+          $ref: '#/components/schemas/Vehicle'
+        technician:
+          $ref: '#/components/schemas/Technician'
+        oilBrand:
+          $ref: '#/components/schemas/OilBrand'
+        scheduledDate:
+          type: string
+          format: date
+        scheduledTime:
+          type: string
+          nullable: true
+        anyTime:
+          type: boolean
+        notes:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [pending, confirmed, active, in_progress, completed, cancelled]
+        estimate:
+          $ref: '#/components/schemas/BookingQuoteResponse'
+        paymentMethod:
+          $ref: '#/components/schemas/PaymentMethod'
+        createdAt:
+          type: string
+          format: date-time
+
+    PaymentMethod:
+      type: object
+      required: [id, type]
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [cash, card, paypal]
+        provider:
+          type: string
+          nullable: true
+        cardBrand:
+          type: string
+          nullable: true
+        cardLast4:
+          type: string
+          nullable: true
+        expiryMonth:
+          type: integer
+          nullable: true
+        expiryYear:
+          type: integer
+          nullable: true
+        cardholderName:
+          type: string
+          nullable: true
+        billingAddress:
+          $ref: '#/components/schemas/Address'
+        isDefault:
+          type: boolean
+
+    PaymentMethodCreateRequest:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [cash, card, paypal]
+        provider:
+          type: string
+          description: Payment provider name when tokenized externally.
+        providerToken:
+          type: string
+          description: Token from payment processor; never raw card data.
+        cardLast4:
+          type: string
+        cardBrand:
+          type: string
+        expiryMonth:
+          type: integer
+        expiryYear:
+          type: integer
+        cardholderName:
+          type: string
+        billingAddress:
+          $ref: '#/components/schemas/Address'
+        isDefault:
+          type: boolean
+          default: false
+
+    Notification:
+      type: object
+      required: [id, title, body, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        data:
+          type: object
+          additionalProperties: true
+        readAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    ShopChatThread:
+      type: object
+      required: [id, shop, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        shop:
+          $ref: '#/components/schemas/ShopSummary'
+        lastMessage:
+          $ref: '#/components/schemas/ShopChatMessage'
+        createdAt:
+          type: string
+          format: date-time
+
+    ShopChatMessage:
+      type: object
+      required: [id, threadId, senderUserId, body, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        threadId:
+          type: string
+          format: uuid
+        senderUserId:
+          type: string
+          format: uuid
+        body:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        readAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    UploadedFile:
+      type: object
+      required: [id, url, contentType, sizeBytes, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        contentType:
+          type: string
+          example: image/png
+        sizeBytes:
+          type: integer
+        originalFilename:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    AIChatSession:
+      type: object
+      required: [id, userId, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          nullable: true
+        aiBaseUrl:
+          type: string
+          nullable: true
+          example: http://10.0.2.2:3000
+        messageCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AIChatSessionDetail:
+      allOf:
+        - $ref: '#/components/schemas/AIChatSession'
+        - type: object
+          properties:
+            messages:
+              type: array
+              items:
+                $ref: '#/components/schemas/AIChatMessage'
+
+    AIChatMessage:
+      type: object
+      required: [id, sessionId, role, content, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        sessionId:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [user, model]
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    AIChatMessageCreateRequest:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [user, model]
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    AIDetectionCreateRequest:
+      type: object
+      required: [originalFileId, detectionCount, confidenceThreshold]
+      properties:
+        originalFileId:
+          type: string
+          format: uuid
+        annotatedFileId:
+          type: string
+          format: uuid
+          nullable: true
+        selectedParts:
+          type: array
+          items:
+            type: string
+        detectedParts:
+          type: array
+          items:
+            type: string
+        detectionCount:
+          type: integer
+        confidenceThreshold:
+          type: number
+          example: 0.25
+        aiBaseUrl:
+          type: string
+          example: http://10.0.2.2:3000
+        objects:
+          type: array
+          items:
+            $ref: '#/components/schemas/DetectedObjectCreateRequest'
+
+    AIDetectionRecord:
+      type: object
+      required: [id, userId, originalFile, detectionCount, confidenceThreshold, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        originalFile:
+          $ref: '#/components/schemas/UploadedFile'
+        annotatedFile:
+          $ref: '#/components/schemas/UploadedFile'
+        selectedParts:
+          type: array
+          items:
+            type: string
+        detectedParts:
+          type: array
+          items:
+            type: string
+        detectionCount:
+          type: integer
+        confidenceThreshold:
+          type: number
+        objects:
+          type: array
+          items:
+            $ref: '#/components/schemas/DetectedObject'
+        aiBaseUrl:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    DetectedObjectCreateRequest:
+      type: object
+      required: [classId, className, confidence, box]
+      properties:
+        classId:
+          type: integer
+        className:
+          type: string
+        confidence:
+          type: number
+        box:
+          $ref: '#/components/schemas/DetectionBox'
+
+    DetectedObject:
+      allOf:
+        - $ref: '#/components/schemas/DetectedObjectCreateRequest'
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+
+    DetectionBox:
+      type: object
+      required: [x1, y1, x2, y2]
+      properties:
+        x1:
+          type: number
+        y1:
+          type: number
+        x2:
+          type: number
+        y2:
+          type: number
+        width:
+          type: number
+        height:
+          type: number
+
+    DetectionClassesResponse:
+      type: object
+      required: [count, parts]
+      properties:
+        count:
+          type: integer
+        parts:
+          type: array
+          items:
+            type: object
+            required: [id, name]
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+            example:
+              id: 47
+              name: Radiator
+
+    DetectMultipartRequest:
+      type: object
+      required: [image]
+      properties:
+        image:
+          type: string
+          format: binary
+        parts:
+          type: string
+          description: Omit or use all/* for every class; otherwise comma-separated names.
+          example: Battery, Radiator
+        conf:
+          type: number
+          default: 0.25
+        includeNumeric:
+          type: boolean
+          default: false
+
+    DetectResponse:
+      type: object
+      required: [selection, confThreshold, image, count, detections]
+      properties:
+        selection:
+          type: object
+          properties:
+            requested:
+              type: array
+              items:
+                type: string
+            matched:
+              type: array
+              items:
+                type: string
+            unmatched:
+              type: array
+              items:
+                type: string
+            all:
+              type: boolean
+        confThreshold:
+          type: number
+        image:
+          type: object
+          properties:
+            width:
+              type: integer
+            height:
+              type: integer
+        count:
+          type: integer
+        detections:
+          type: array
+          items:
+            $ref: '#/components/schemas/DetectedObjectCreateRequest'
+
+    AIChatLiveRequest:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+        history:
+          type: array
+          items:
+            type: object
+            required: [role, content]
+            properties:
+              role:
+                type: string
+                enum: [user, model]
+              content:
+                type: string
+
+    AIChatLiveResponse:
+      type: object
+      required: [reply]
+      properties:
+        reply:
+          type: string

@@ -18,8 +18,13 @@ const SECURITY_DEFAULTS = {
 };
 
 const NOTIFICATION_DEFAULTS = {
+  newBooking: true,
+  bookingStatusUpdated: true,
   bookingAccepted: true,
   bookingDeclined: true,
+  bookingCancelled: true,
+  bookingInProgress: true,
+  bookingCompleted: true,
   settingsSaved: true,
   securitySettingsUpdated: true,
   mfaUpdated: true,
@@ -102,8 +107,13 @@ export class AccountService {
           ...(user.notificationPreferences as object),
         },
         {
+          newBooking: 'New booking',
+          bookingStatusUpdated: 'Booking status updated',
           bookingAccepted: 'Booking accepted',
           bookingDeclined: 'Booking declined',
+          bookingCancelled: 'Booking cancelled',
+          bookingInProgress: 'Booking in progress',
+          bookingCompleted: 'Booking completed',
           settingsSaved: 'Settings saved',
           securitySettingsUpdated: 'Security settings updated',
           mfaUpdated: 'MFA updated',

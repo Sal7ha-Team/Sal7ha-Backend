@@ -25,6 +25,19 @@ export class AuthController {
   }
 
   @Public()
+  @Post('login')
+  @HttpCode(HttpStatus.OK)
+  login(@Body() dto: any) {
+    return this.auth.signInClient(dto);
+  }
+
+  @Public()
+  @Post('register')
+  register(@Body() dto: any) {
+    return this.auth.signUpClient(dto);
+  }
+
+  @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   refresh(@Body() dto: RefreshTokenDto) {
@@ -46,5 +59,25 @@ export class AuthController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async signOut(@Body() dto?: Partial<RefreshTokenDto>) {
     await this.auth.signOut(dto?.refreshToken);
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async logout(@Body() dto?: Partial<RefreshTokenDto>) {
+    await this.auth.signOut(dto?.refreshToken);
+  }
+
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.ACCEPTED)
+  forgotPassword(@Body() dto: any) {
+    return this.auth.requestPasswordReset(dto?.email);
+  }
+
+  @Public()
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  verifyEmail(@Body() dto: any) {
+    return this.auth.verifyEmail(dto);
   }
 }
